@@ -330,7 +330,7 @@
   /* ---------------- files ---------------- */
   function download(name, text, mime) {
     var a = document.createElement("a");
-    a.href = URL.createObjectURL(new Blob([text], { type: mime }));
+    a.href = URL.createObjectURL(text instanceof Blob ? text : new Blob([text], { type: mime }));
     a.download = name; document.body.appendChild(a); a.click(); a.remove();
     setTimeout(function () { URL.revokeObjectURL(a.href); }, 1000);
   }
@@ -389,6 +389,137 @@
     rows.push([]);
     rows.push(["Assumptions", "Maintenance factor " + state.settings.mf, C.UF_TABLES[state.settings.reflectance].label, "Utilisation factor: generic table", "Preliminary sizing - verify with DIALux or the lighting vendor"]);
     download(fileBase() + "-lighting-schedule.csv", "﻿" + rows.map(function (r) { return r.map(q).join(","); }).join("\r\n"), "text/csv;charset=utf-8");
+  });
+
+  /* ---------------- Excel schedule (formatted .xlsx, three sheets) ---------------- */
+  $("btnXlsx").addEventListener("click", function () {
+    if (!state.rooms.length) { alert("Add a room first."); return; }
+    var X = window.GDSIXlsx, S = new X.Styles();
+    var INK = "1F2328", LINE = "E4E0D8", GOLD = "8E6420", MUTE = "6B7280", ZEBRA = "F8F6F2", TOT = "EFEAE0";
+    var st = function (o) { return S.get(o); };
+    var body = function (z, o) { var s = { border: { bottom: "thin:" + LINE } }; if (z) s.fill = ZEBRA; for (var k in o) s[k] = o[k]; return st(s); };
+    var total = function (o) { var s = { b: 1, fill: TOT, border: { top: "medium:" + INK, bottom: "thin:" + INK } }; for (var k in o) s[k] = o[k]; return st(s); };
+    var num = function (v) { v = C.num(v); return v > 0 ? v : null; };
+    var issued = new Date().toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
+    var project = state.name || "Untitled project";
+    var sTitle = st({ b: 1, sz: 20 }), sProj = st({ b: 1, sz: 12, color: GOLD }), sMeta = st({ sz: 9, color: MUTE });
+    var sHead = st({ b: 1, sz: 9, color: "FFFFFF", fill: INK, h: "center", wrap: 1 }), sHeadL = st({ b: 1, sz: 9, color: "FFFFFF", fill: INK, h: "left", wrap: 1, indent: 1 });
+    var sGroup = st({ b: 1, sz: 9, color: GOLD, fill: "F4EBD9", h: "center", border: { bottom: "medium:" + GOLD, left: "thin:FFFFFF", right: "thin:FFFFFF" } });
+    var CHK = { ok: { color: "1C7D4D", fill: "E3F4EA" }, over: { color: "9A5E06", fill: "FDF0D8" }, warn: { color: "9A5E06", fill: "FDF0D8" }, fail: { color: "BF3A2C", fill: "FBE6E3" }, error: { color: "BF3A2C", fill: "FBE6E3" } };
+    var banner = function (title) {
+      return [{ h: 34, c: [{ v: title, s: sTitle }] }, { h: 20, c: [{ v: project, s: sProj }] },
+        { h: 16, c: [{ v: "Issued " + issued + "   |   Preliminary sizing by the lumen method   |   Final verification by DIALux or the lighting vendor", s: sMeta }] }, { h: 8, c: [] }];
+    };
+    var W1 = [5, 24, 28, 8, 8, 9, 9, 38, 22, 9, 36, 11, 9, 6, 36, 10, 10, 8, 13, 64], W2 = [5, 44, 16, 12, 10, 7, 14, 12, 12, 8, 7, 60], W3 = [30, 9, 9, 9, 9, 46, 80];
+    /* row height from the longest wrapped text, so rows keep some air and nothing is clipped */
+    var rowH = function (cells, widths) {
+      var m = 1;
+      cells.forEach(function (c, k) {
+        if (!c || typeof c.v !== "string" || !c.v) return;
+        var n = 0; c.v.split("\n").forEach(function (part) { n += Math.max(1, Math.ceil(part.length / (widths[k] * 1.1))); });
+        if (n > m) m = n;
+      });
+      return Math.max(22, m * 12.5 + 9);
+    };
+    var srcText = function (std) { return std.source.type === "manual" ? STD.manualTitle + ", " + std.source.ref : std.source.type === "is3646" ? STD.supplementTitle + ", " + std.source.ref : "Entered by designer"; };
+
+    /* ----- sheet 1: schedule ----- */
+    var rows = banner("LIGHTING SCHEDULE"), g = [], heads = ["No", "Room", "Space type", "Length\n(m)", "Width\n(m)", "Area\n(m²)", "Ceiling\n(m)", "Standard", "Required", "Design\n(lux)", "Fixture", "Fixture\nstatus", "Qty", "Unit", "Layout", "Average\n(lux)", "Power\n(W)", "W/m²", "Check", "Notes"];
+    for (var i = 0; i < 20; i++) g.push({ v: { 0: "ROOM", 7: "STANDARD", 10: "FIXTURE", 15: "RESULT" }[i] || "", s: sGroup });
+    rows.push({ h: 20, c: g });
+    rows.push({ h: 32, c: heads.map(function (h, k) { return { v: h, s: [1, 2, 7, 8, 10, 14, 19].indexOf(k) >= 0 ? sHeadL : sHead }; }) });
+    var first = rows.length + 1, ok = 0, area = 0, watt = 0, anyGeneric = false, byFx = {}, order = [], used = [];
+    var take = function (fx, qty, a, w, room) {
+      if (!byFx[fx.id]) { byFx[fx.id] = { fx: fx, qty: 0, area: 0, watt: 0, rooms: [] }; order.push(fx.id); }
+      var t = byFx[fx.id]; t.qty += qty; t.area += a; t.watt += w; if (t.rooms.indexOf(room) < 0) t.rooms.push(room);
+    };
+    state.rooms.forEach(function (room, i) {
+      var std = stdById(room.use), fx = fxFor(room), r = result(room), e = r.status === "error", z = i % 2, surf = r.kind === "surface", reg = isUser(fx);
+      var name = room.name || "Room " + (i + 1), txt = function (o) { return body(z, Object.assign({ wrap: 1, h: "left", indent: 1 }, o || {})); };
+      if (used.indexOf(std) < 0) used.push(std);
+      if (!reg) anyGeneric = true;
+      if (!e) {
+        if (r.status !== "fail") ok++;
+        area += r.area; watt += r.totalWatt;
+        var sup = r.suppQty ? fxById(r.suppId) : null, supW = sup ? r.suppQty * (C.num(sup.watt) || 0) : 0;
+        take(fx, surf ? 0 : r.qty, surf ? r.luminousArea : 0, r.totalWatt - supW, name);
+        if (sup) { take(sup, r.suppQty, 0, supW, name); if (!isUser(sup)) anyGeneric = true; }
+      }
+      var c = CHK[r.status];
+      var cells = [
+        { v: i + 1, s: body(z, { h: "center", color: MUTE }) }, { v: name, s: txt({ b: 1 }) }, { v: std.name, s: txt() },
+        { v: num(room.length), s: body(z, { fmt: "0.00" }) }, { v: num(room.width), s: body(z, { fmt: "0.00" }) }, { v: e ? null : r.area, s: body(z, { fmt: "#,##0.0" }) }, { v: num(room.height), s: body(z, { fmt: "0.00" }) },
+        { v: srcText(std), s: txt({ sz: 9 }) }, { v: rangeText(std), s: txt({ sz: 9 }) }, { v: e ? null : C.round(r.target), s: body(z, { fmt: "#,##0" }) },
+        { v: fx.name, s: txt() }, { v: reg ? "Registered" : "Generic", s: body(z, { h: "center", sz: 9, b: 1, color: reg ? "1C7D4D" : "9A5E06" }) },
+        { v: e ? null : (surf ? r.luminousArea : r.qty), s: body(z, { b: 1, fmt: surf ? "#,##0.0" : "#,##0" }) }, { v: surf ? "m²" : "pcs", s: body(z, { h: "center", sz: 9, color: MUTE }) },
+        { v: e ? "" : (surf ? r.qty + " strips × " + r1(r.stripLength) + " m × " + r1(r.moduleWidth) + " m" + (r.suppQty ? "\n+ " + r.suppQty + " pcs " + r.suppName : "") : r.cols + " × " + r.rows + " grid @ " + r2(r.sx) + " × " + r2(r.sy) + " m"), s: txt({ sz: 9 }) },
+        { v: e ? null : C.round(r.achieved), s: body(z, { b: 1, fmt: "#,##0" }) }, { v: e ? null : C.round(r.totalWatt), s: body(z, { fmt: "#,##0" }) }, { v: e ? null : C.round(r.lpd, 1), s: body(z, { fmt: "0.0" }) },
+        { v: PILL[r.status], s: st({ b: 1, sz: 9, h: "center", color: c.color, fill: c.fill, border: { bottom: "thin:" + LINE, left: "thin:FFFFFF", right: "thin:FFFFFF" } }) },
+        { v: (r.info ? [r.info] : []).concat(r.messages).join("\n"), s: txt({ sz: 9, color: MUTE }) }
+      ];
+      rows.push({ h: rowH(cells, W1), c: cells });
+    });
+    var last = rows.length, tr = last + 1, t = [];
+    for (i = 0; i < 20; i++) t.push({ v: "", s: total({}) });
+    t[0] = { v: "TOTAL", s: total({ h: "left", indent: 1 }) };
+    t[5] = { v: C.round(area, 1), f: "SUM(F" + first + ":F" + last + ")", s: total({ fmt: "#,##0.0" }) };
+    t[16] = { v: C.round(watt), f: "SUM(Q" + first + ":Q" + last + ")", s: total({ fmt: "#,##0" }) };
+    t[17] = { v: area ? C.round(watt / area, 1) : 0, f: "IF(F" + tr + ">0,Q" + tr + "/F" + tr + ",0)", s: total({ fmt: "0.0" }) };
+    t[18] = { v: ok + " / " + state.rooms.length + " OK", s: total({ h: "center", sz: 9 }) };
+    t[19] = { v: "Power density reference " + STD.buildingLpd.value + " W/m² (" + STD.buildingLpd.ref + ")", s: total({ h: "left", indent: 1, sz: 9, b: 0, color: MUTE }) };
+    rows.push({ h: 24, c: t });
+    if (anyGeneric) { rows.push({ h: 8, c: [] }); rows.push({ c: [{ v: "Fixtures marked Generic are placeholder assumptions. Register the actual fixtures in the calculator to confirm quantities.", s: st({ i: 1, sz: 9, color: "9A5E06" }) }] }); }
+    var schedule = { name: "Lighting Schedule", rows: rows, cols: W1,
+      merges: ["A5:G5", "H5:J5", "K5:O5", "P5:T5", "A" + tr + ":E" + tr], freeze: { col: 2, row: 6 }, filter: "A6:T" + last, repeatRows: "5:6", landscape: true, paper: 8, footer: project + " - Lighting Schedule" };
+
+    /* ----- sheet 2: fixture take-off ----- */
+    var r2s = banner("FIXTURE TAKE-OFF"), th = ["No", "Fixture", "Type", "Status", "Qty", "Unit", "Output", "Power", "Total power\n(W)", "CCT\n(K)", "CRI", "Used in"];
+    r2s.push({ h: 32, c: th.map(function (h, k) { return { v: h, s: [1, 2, 11].indexOf(k) >= 0 ? sHeadL : sHead }; }) });
+    var f1 = r2s.length + 1;
+    order.forEach(function (id, i) {
+      var q = byFx[id], fx = q.fx, z = i % 2, surf = fx.kind === "surface", reg = isUser(fx), txt = function (o) { return body(z, Object.assign({ wrap: 1, h: "left", indent: 1 }, o || {})); };
+      var cells = [
+        { v: i + 1, s: body(z, { h: "center", color: MUTE }) }, { v: fx.name, s: txt({ b: 1 }) }, { v: KIND[fx.kind], s: txt() },
+        { v: reg ? "Registered" : "Generic", s: body(z, { h: "center", sz: 9, b: 1, color: reg ? "1C7D4D" : "9A5E06" }) },
+        { v: surf ? C.round(q.area, 1) : q.qty, s: body(z, { b: 1, fmt: surf ? "#,##0.0" : "#,##0" }) }, { v: surf ? "m²" : "pcs", s: body(z, { h: "center", sz: 9, color: MUTE }) },
+        { v: C.num(fx.lm) || null, s: body(z, { fmt: surf ? '#,##0" lm/m²"' : '#,##0" lm"' }) }, { v: C.num(fx.watt) || null, s: body(z, { fmt: (C.num(fx.watt) % 1 ? "#,##0.0" : "#,##0") + (surf ? '" W/m²"' : '" W"') }) },
+        { v: C.round(q.watt), s: body(z, { fmt: "#,##0" }) }, { v: C.num(fx.cct) || null, s: body(z, { h: "center" }) }, { v: C.num(fx.cri) || null, s: body(z, { h: "center" }) },
+        { v: q.rooms.join(", "), s: txt({ sz: 9, color: MUTE }) }
+      ];
+      r2s.push({ h: rowH(cells, W2), c: cells });
+    });
+    var l2 = r2s.length, t2 = [];
+    for (i = 0; i < 12; i++) t2.push({ v: "", s: total({}) });
+    t2[0] = { v: "TOTAL", s: total({ h: "left", indent: 1 }) };
+    t2[8] = { v: C.round(watt), f: "SUM(I" + f1 + ":I" + l2 + ")", s: total({ fmt: "#,##0" }) };
+    r2s.push({ h: 24, c: t2 });
+    var takeoff = { name: "Fixture Take-off", rows: r2s, cols: W2, merges: ["A" + (l2 + 1) + ":D" + (l2 + 1)], freeze: { row: 5 }, repeatRows: "5:5", landscape: true, footer: project + " - Fixture Take-off" };
+
+    /* ----- sheet 3: basis of calculation ----- */
+    var r3 = banner("BASIS OF CALCULATION"), m3 = [], kS = st({ b: 1, sz: 9, color: MUTE, v: "top", border: { bottom: "thin:" + LINE } }), vS = st({ wrap: 1, v: "top", border: { bottom: "thin:" + LINE } });
+    [["Method", "Lumen method (average illuminance):  N = E × A / (Φ × UF × MF)"],
+      ["Maintenance factor (MF)", String(state.settings.mf)],
+      ["Room finishes", C.UF_TABLES[state.settings.reflectance].label],
+      ["Utilisation factor (UF)", "Generic table by room index and room finishes. Replace with the manufacturer's UF or a DIALux run for the final design."],
+      ["Primary standard", STD.manualTitle],
+      ["Supplementary standard", STD.supplementTitle + " - used only where the GDSI manual gives no figure"],
+      ["Power density reference", STD.buildingLpd.value + " W/m² - " + STD.buildingLpd.ref],
+      ["Status of this document", "Preliminary sizing for design coordination. Final verification by DIALux or the lighting vendor using photometric files of the actual fixtures."]
+    ].forEach(function (p) {
+      var c = [{ v: p[0], s: kS }, { v: p[1], s: vS }]; for (var k = 2; k < 7; k++) c.push({ v: "", s: vS });
+      r3.push({ h: rowH([null, { v: p[1] }], [0, 150]), c: c }); m3.push("B" + r3.length + ":G" + r3.length);
+    });
+    r3.push({ h: 14, c: [] });
+    r3.push({ h: 22, c: [{ v: "STANDARDS APPLIED IN THIS PROJECT", s: st({ b: 1, sz: 11, color: GOLD }) }] });
+    r3.push({ h: 24, c: ["Space type", "Min\n(lux)", "Design\n(lux)", "Max\n(lux)", "CCT\n(K)", "Source", "Note"].map(function (h, k) { return { v: h, s: k === 0 || k > 4 ? sHeadL : sHead }; }) });
+    used.forEach(function (std, i) {
+      var z = i % 2, n = function (v) { return { v: v === null || v === undefined ? "-" : v, s: body(z, { h: "center" }) }; }, txt = function (o) { return body(z, Object.assign({ wrap: 1, h: "left", indent: 1 }, o || {})); };
+      var cells = [{ v: std.name, s: txt({ b: 1 }) }, n(std.min), { v: std.target === null ? "-" : std.target, s: body(z, { h: "center", b: 1 }) }, n(std.max), n(std.cct), { v: srcText(std), s: txt({ sz: 9 }) }, { v: std.source.note, s: txt({ sz: 9, color: MUTE }) }];
+      r3.push({ h: rowH(cells, W3), c: cells });
+    });
+    var basis = { name: "Basis", rows: r3, cols: W3, merges: m3, landscape: true, footer: project + " - Basis of Calculation" };
+
+    download(fileBase() + "-lighting-schedule.xlsx", X.build([schedule, takeoff, basis], S));
   });
 
   /* ---------------- header ---------------- */

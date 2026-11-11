@@ -9,7 +9,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
-<link rel="stylesheet" href="style.css?v=3">
+<link rel="stylesheet" href="style.css?v=4">
 </head>
 <body>
 <header class="top">
@@ -26,7 +26,8 @@
     <input id="projName" type="text" placeholder="Untitled project" aria-label="Project name">
     <button id="btnOpen" class="ghost">Open</button>
     <button id="btnSave" class="ghost">Save</button>
-    <button id="btnCsv" class="primary">Export schedule</button>
+    <button id="btnCsv" class="ghost" title="Plain CSV schedule">CSV</button>
+    <button id="btnXlsx" class="primary" title="Formatted Excel schedule">Export Excel</button>
     <button id="btnTheme" class="icon" title="Switch light / dark" aria-label="Switch light / dark">
       <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M10 2.5a7.5 7.5 0 1 0 0 15z" fill="currentColor"/><circle cx="10" cy="10" r="7.5" fill="none" stroke="currentColor" stroke-width="1.5"/></svg>
     </button>
@@ -158,9 +159,10 @@
   </section>
 </main>
 
-<script src="data/standards.js?v=3"></script>
-<script src="data/fixtures.js?v=3"></script>
-<script src="js/calc.js?v=3"></script>
-<script src="js/app.js?v=3"></script>
+<script src="data/standards.js?v=4"></script>
+<script src="data/fixtures.js?v=4"></script>
+<script src="js/calc.js?v=4"></script>
+<script src="js/xlsx.js?v=4"></script>
+<script src="js/app.js?v=4"></script>
 </body>
 </html>
