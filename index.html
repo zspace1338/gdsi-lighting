@@ -4,21 +4,32 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=1280">
 <title>GDSI Lighting Calculator</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%2315171a'/%3E%3Ccircle cx='16' cy='16' r='9' fill='none' stroke='%23e7b765' stroke-opacity='.4' stroke-width='1.5'/%3E%3Ccircle cx='16' cy='16' r='4.5' fill='%23e7b765'/%3E%3C/svg%3E">
+<script>try { var t = localStorage.getItem("gdsiLighting.theme"); if (t) document.documentElement.setAttribute("data-theme", t); } catch (e) {}</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
 <header class="top">
-  <div class="brand">GDSI Lighting Calculator <span class="ver">v0.1 - manual entry</span></div>
+  <div class="brand">
+    <svg class="logo" viewBox="0 0 32 32" aria-hidden="true"><circle cx="16" cy="16" r="13" class="l3"/><circle cx="16" cy="16" r="8.5" class="l2"/><circle cx="16" cy="16" r="4" class="l1"/></svg>
+    <div class="brand-t"><b>GDSI Lighting</b><span>Illuminance &amp; fixture planning</span></div>
+  </div>
   <nav class="tabs" id="tabs">
-    <button data-tab="rooms" class="on">1. Rooms</button>
-    <button data-tab="fixtures">2. Fixtures</button>
-    <button data-tab="standards">3. Standards</button>
+    <button data-tab="rooms" class="on">Rooms</button>
+    <button data-tab="fixtures">Fixtures</button>
+    <button data-tab="standards">Standards</button>
   </nav>
   <div class="proj">
-    <input id="projName" type="text" placeholder="Project name" aria-label="Project name">
+    <input id="projName" type="text" placeholder="Untitled project" aria-label="Project name">
     <button id="btnOpen" class="ghost">Open</button>
     <button id="btnSave" class="ghost">Save</button>
-    <button id="btnCsv" class="primary">Export schedule (CSV)</button>
+    <button id="btnCsv" class="primary">Export schedule</button>
+    <button id="btnTheme" class="icon" title="Switch light / dark" aria-label="Switch light / dark">
+      <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M10 2.5a7.5 7.5 0 1 0 0 15z" fill="currentColor"/><circle cx="10" cy="10" r="7.5" fill="none" stroke="currentColor" stroke-width="1.5"/></svg>
+    </button>
     <input id="fileOpen" type="file" accept=".json" hidden>
   </div>
 </header>
@@ -26,62 +37,80 @@
 <main>
   <!-- ROOMS -->
   <section id="tab-rooms" class="tab on">
-    <div class="bar">
-      <button id="btnAdd" class="primary">+ Add room</button>
-      <label>Maintenance factor
-        <input id="setMf" type="number" min="0.5" max="1" step="0.05">
-      </label>
-      <label>Room finishes
-        <select id="setRefl"></select>
-      </label>
-      <span class="hint">Preliminary sizing by the lumen method. Final verification by DIALux or the lighting vendor.</span>
+    <div class="head">
+      <div class="title">
+        <h1>Rooms</h1>
+        <p>Preliminary sizing by the lumen method. Final verification by DIALux or the lighting vendor.</p>
+      </div>
+      <div class="ctl">
+        <label>Maintenance factor
+          <input id="setMf" type="number" min="0.5" max="1" step="0.05">
+        </label>
+        <label>Room finishes
+          <select id="setRefl"></select>
+        </label>
+        <button id="btnAdd" class="primary">+ Add room</button>
+      </div>
     </div>
+    <div id="summary" class="summary"></div>
     <div class="split">
       <div class="left">
-        <table class="grid" id="roomTable">
-          <thead>
-            <tr>
-              <th class="c-no">#</th>
-              <th>Room name</th>
-              <th>Space type</th>
-              <th class="c-n">Length<br>(m)</th>
-              <th class="c-n">Width<br>(m)</th>
-              <th class="c-n">Ceiling<br>(m)</th>
-              <th class="c-n">Target<br>(lux)</th>
-              <th>Fixture</th>
-              <th class="c-n">Qty</th>
-              <th class="c-n">Result<br>(lux)</th>
-              <th>Check</th>
-              <th></th>
-            </tr>
-          </thead>
-          <tbody id="roomBody"></tbody>
-        </table>
-        <div id="emptyRooms" class="empty">No rooms yet. Click <b>+ Add room</b> and enter the room size.</div>
-        <div id="summary" class="summary"></div>
+        <div class="card tablecard">
+          <table class="grid" id="roomTable">
+            <thead>
+              <tr>
+                <th class="c-no">#</th>
+                <th>Room name</th>
+                <th>Space type</th>
+                <th class="c-n">Length<br>(m)</th>
+                <th class="c-n">Width<br>(m)</th>
+                <th class="c-n">Ceiling<br>(m)</th>
+                <th class="c-n">Target<br>(lux)</th>
+                <th>Fixture</th>
+                <th class="c-n">Qty</th>
+                <th class="c-n">Result<br>(lux)</th>
+                <th>Check</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="roomBody"></tbody>
+          </table>
+          <div id="emptyRooms" class="empty">
+            <svg viewBox="0 0 48 48" aria-hidden="true"><circle cx="24" cy="24" r="20" class="l3"/><circle cx="24" cy="24" r="12" class="l2"/><circle cx="24" cy="24" r="5" class="l1"/></svg>
+            <b>No rooms yet</b>
+            <span>Click <em>+ Add room</em> and enter the room size. The standard, quantity and layout appear straight away.</span>
+          </div>
+        </div>
       </div>
-      <aside class="right" id="detail"></aside>
+      <aside class="right card" id="detail"></aside>
     </div>
   </section>
 
   <!-- FIXTURES -->
   <section id="tab-fixtures" class="tab">
-    <div class="bar">
-      <span class="hint">Built-in items are generic placeholders. Register the fixtures actually used on site - they appear at the top of the fixture list.</span>
-      <button id="btnFxExport" class="ghost">Export fixtures</button>
-      <button id="btnFxImport" class="ghost">Import fixtures</button>
-      <input id="fileFx" type="file" accept=".json" hidden>
+    <div class="head">
+      <div class="title">
+        <h1>Fixtures</h1>
+        <p>Built-in items are generic placeholders. Register the fixtures actually used on site - they appear at the top of the fixture list.</p>
+      </div>
+      <div class="ctl">
+        <button id="btnFxImport" class="ghost">Import fixtures</button>
+        <button id="btnFxExport" class="ghost">Export fixtures</button>
+        <input id="fileFx" type="file" accept=".json" hidden>
+      </div>
     </div>
     <div class="split">
       <div class="left">
-        <table class="grid" id="fxTable">
-          <thead>
-            <tr><th>Name</th><th>Type</th><th class="c-n">Output</th><th class="c-n">Power</th><th class="c-n">lm/W</th><th class="c-n">CCT (K)</th><th class="c-n">CRI</th><th>Status</th><th></th></tr>
-          </thead>
-          <tbody id="fxBody"></tbody>
-        </table>
+        <div class="card tablecard">
+          <table class="grid" id="fxTable">
+            <thead>
+              <tr><th>Name</th><th>Type</th><th class="c-n">Output</th><th class="c-n">Power</th><th class="c-n">lm/W</th><th class="c-n">CCT (K)</th><th class="c-n">CRI</th><th>Status</th><th></th></tr>
+            </thead>
+            <tbody id="fxBody"></tbody>
+          </table>
+        </div>
       </div>
-      <aside class="right">
+      <aside class="right card">
         <h3 id="fxFormTitle">Register a fixture</h3>
         <form id="fxForm" class="form">
           <label>Name / model <input name="name" type="text" required placeholder="e.g. Maker ABC-1234 downlight"></label>
@@ -92,12 +121,14 @@
               <option value="surface">Surface Light (luminous ceiling)</option>
             </select>
           </label>
-          <label><span id="lblLm">Luminous flux (lm per fixture)</span> <input name="lm" type="number" min="1" step="any" required></label>
-          <label><span id="lblW">Power (W per fixture)</span> <input name="watt" type="number" min="0" step="any" required></label>
-          <label>Colour temperature (K) <input name="cct" type="number" min="1000" step="100"></label>
-          <label>CRI (Ra) <input name="cri" type="number" min="0" max="100" step="1"></label>
-          <label id="rowShr">Max spacing / mounting height <input name="shr" type="number" min="0.5" max="3" step="0.1" placeholder="1.5"></label>
-          <label id="rowLen">Length (m) <input name="length" type="number" min="0.1" step="0.1" placeholder="1.2"></label>
+          <div class="two">
+            <label><span id="lblLm">Luminous flux (lm per fixture)</span> <input name="lm" type="number" min="1" step="any" required></label>
+            <label><span id="lblW">Power (W per fixture)</span> <input name="watt" type="number" min="0" step="any" required></label>
+            <label>Colour temperature (K) <input name="cct" type="number" min="1000" step="100"></label>
+            <label>CRI (Ra) <input name="cri" type="number" min="0" max="100" step="1"></label>
+            <label id="rowShr">Max spacing / mounting height <input name="shr" type="number" min="0.5" max="3" step="0.1" placeholder="1.5"></label>
+            <label id="rowLen">Length (m) <input name="length" type="number" min="0.1" step="0.1" placeholder="1.2"></label>
+          </div>
           <label>Note <input name="note" type="text" placeholder="datasheet link, IP rating, etc."></label>
           <div class="formbtn">
             <button type="submit" class="primary" id="fxSubmit">Register</button>
@@ -110,15 +141,20 @@
 
   <!-- STANDARDS -->
   <section id="tab-standards" class="tab">
-    <div class="bar">
-      <span class="hint"><span class="badge manual">GDSI MANUAL</span> figure from the GDSI 2.0 Guideline.
-      <span class="badge supp">IS 3646</span> used only where the manual gives no figure.
-      <span class="badge none">ENTER</span> no figure found - the designer enters the target.</span>
+    <div class="head">
+      <div class="title">
+        <h1>Standards</h1>
+        <p><span class="badge manual">GDSI MANUAL</span> figure from the GDSI 2.0 Guideline.
+        <span class="badge supp">IS 3646</span> used only where the manual gives no figure.
+        <span class="badge none">ENTER</span> no figure found - the designer enters the target.</p>
+      </div>
     </div>
-    <table class="grid" id="stdTable">
-      <thead><tr><th>Space type</th><th class="c-n">Min</th><th class="c-n">Design</th><th class="c-n">Max</th><th class="c-n">CCT (K)</th><th>Source</th><th>Note</th></tr></thead>
-      <tbody id="stdBody"></tbody>
-    </table>
+    <div class="card tablecard">
+      <table class="grid" id="stdTable">
+        <thead><tr><th>Space type</th><th class="c-n">Min</th><th class="c-n">Design</th><th class="c-n">Max</th><th class="c-n">CCT (K)</th><th>Source</th><th>Note</th></tr></thead>
+        <tbody id="stdBody"></tbody>
+      </table>
+    </div>
   </section>
 </main>
 

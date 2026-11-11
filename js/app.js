@@ -85,7 +85,7 @@
     var tr = $("roomBody").children[i]; if (!tr) return;
     var r = result(state.rooms[i]);
     var cell = function (k) { return tr.querySelector('[data-o="' + k + '"]'); };
-    cell("qty").textContent = r.status === "error" ? "-" : (r.kind === "surface" ? r.qty + " x " + r1(r.stripLength) + " m" + (r.suppQty ? " + " + r.suppQty + " spot" : "") : r.qty);
+    cell("qty").innerHTML = r.status === "error" ? "-" : (r.kind === "surface" ? r.qty + " × " + r1(r.stripLength) + " m" + (r.suppQty ? "<small>+ " + r.suppQty + " spot</small>" : "") : String(r.qty));
     cell("lux").textContent = r.status === "error" ? "-" : r0(r.achieved);
     cell("chk").innerHTML = '<span class="pill ' + r.status + '">' + PILL[r.status] + "</span>";
   }
@@ -153,26 +153,39 @@
     var m = 34, bw = 400 - 2 * m, bh = 250;
     var sc = Math.min(bw / r.L, bh / r.W), w = r.L * sc, h = r.W * sc;
     var ox = (400 - w) / 2, oy = m - 10, H = h + oy + 30;
-    var s = '<svg viewBox="0 0 400 ' + Math.round(H) + '" role="img" aria-label="Fixture layout plan">';
-    s += '<rect x="' + ox + '" y="' + oy + '" width="' + w + '" height="' + h + '" fill="#fff" stroke="#1c1f24" stroke-width="1.5"/>';
+    var grid = sc >= 5; /* 1 m grid inside the room, skipped when it would be too dense */
+    var s = '<svg class="plan" viewBox="0 0 400 ' + Math.round(H) + '" role="img" aria-label="Fixture layout plan"><defs>' +
+      '<radialGradient id="plGlow"><stop offset="0" class="g0"/><stop offset="1" class="g1"/></radialGradient>' +
+      '<pattern id="plGrid" width="' + sc + '" height="' + sc + '" patternUnits="userSpaceOnUse" patternTransform="translate(' + ox + " " + oy + ')"><path d="M' + sc + " 0H0V" + sc + '" class="pl-grid"/></pattern>' +
+      '<clipPath id="plClip"><rect x="' + ox + '" y="' + oy + '" width="' + w + '" height="' + h + '"/></clipPath></defs>';
+    s += '<rect x="' + ox + '" y="' + oy + '" width="' + w + '" height="' + h + '" class="pl-room"/>';
+    if (grid) s += '<rect x="' + ox + '" y="' + oy + '" width="' + w + '" height="' + h + '" fill="url(#plGrid)"/>';
     r.strips.forEach(function (p) {
-      s += '<rect x="' + (ox + p.x * sc) + '" y="' + (oy + p.y * sc) + '" width="' + p.w * sc + '" height="' + p.h * sc + '" fill="#cfeef7" stroke="#00aad2"/>';
+      s += '<rect x="' + (ox + p.x * sc) + '" y="' + (oy + p.y * sc) + '" width="' + p.w * sc + '" height="' + p.h * sc + '" rx="2" class="pl-strip"/>';
     });
     var half = r.lineLength ? Math.max(3, (r.lineLength * sc) / 2) : 0;
-    var rad = Math.max(2, Math.min(5, Math.min(r.sx || 1, r.sy || 1) * sc * 0.18));
+    var pitch = Math.min(r.sx || 1, r.sy || 1) * sc;
+    var rad = Math.max(1.8, Math.min(4.5, pitch * 0.16)), glow = Math.max(7, Math.min(30, pitch * 0.62));
+    var halo = "", core = "";
     r.positions.forEach(function (p) {
       var x = ox + p.x * sc, y = oy + p.y * sc;
-      s += half ? '<line x1="' + (x - half) + '" y1="' + y + '" x2="' + (x + half) + '" y2="' + y + '" stroke="#00aad2" stroke-width="3" stroke-linecap="round"/>'
-                : '<circle cx="' + x + '" cy="' + y + '" r="' + rad + '" fill="#00aad2"/>';
+      if (half) {
+        var ln = ' x1="' + (x - half) + '" y1="' + y + '" x2="' + (x + half) + '" y2="' + y + '"';
+        halo += "<line" + ln + ' class="pl-halo"/>'; core += "<line" + ln + ' class="pl-line"/>';
+      } else {
+        halo += '<circle cx="' + x + '" cy="' + y + '" r="' + glow + '" fill="url(#plGlow)"/>';
+        core += '<circle cx="' + x + '" cy="' + y + '" r="' + rad + '" class="pl-fx"/>';
+      }
     });
-    s += '<text x="200" y="' + (oy + h + 18) + '" text-anchor="middle" font-size="12" fill="#68707c">' + r2(r.L) + " m</text>";
-    s += '<text x="' + (ox - 8) + '" y="' + (oy + h / 2) + '" text-anchor="middle" font-size="12" fill="#68707c" transform="rotate(-90 ' + (ox - 8) + " " + (oy + h / 2) + ')">' + r2(r.W) + " m</text>";
+    s += '<g clip-path="url(#plClip)">' + halo + "</g>" + core;
+    s += '<text x="200" y="' + (oy + h + 19) + '" text-anchor="middle" class="pl-dim">' + r2(r.L) + " m" + (grid ? "  ·  grid 1 m" : "") + "</text>";
+    s += '<text x="' + (ox - 9) + '" y="' + (oy + h / 2) + '" text-anchor="middle" class="pl-dim" transform="rotate(-90 ' + (ox - 9) + " " + (oy + h / 2) + ')">' + r2(r.W) + " m</text>";
     return s + "</svg>";
   }
 
   function renderDetail(rebuild) {
     var box = $("detail"), room = state.rooms[state.sel];
-    if (!room) { box.innerHTML = '<p class="hint">Select a room to see the standard, the calculation and the layout.</p>'; return; }
+    if (!room) { box.innerHTML = '<p class="empty-d">Select a room to see the standard, the calculation and the layout.</p>'; return; }
     var std = stdById(room.use);
     if (rebuild || !$("detailRes")) {
       box.innerHTML = '<div id="detailRes"></div><div class="extra">' +
@@ -180,10 +193,17 @@
         '<label>Work plane height (m)<input type="number" data-x="workPlane" min="0" step="0.05" value="' + esc(room.workPlane) + '" placeholder="' + std.workPlane + '"></label></div>';
     }
     var r = result(room), fx = fxFor(room);
-    var h = "<h3>" + esc(room.name || "Room " + (state.sel + 1)) + " - " + esc(std.name) + "</h3>";
-    h += '<p class="src">' + srcBadge(std) + "<br><b>" + rangeText(std) + "</b></p>";
+    var h = '<div class="d-head"><h3>' + esc(room.name || "Room " + (state.sel + 1)) + "</h3><span>" + esc(std.name) + "</span></div>";
+    h += '<p class="src">' + srcBadge(std) + "<b>" + rangeText(std) + "</b></p>";
     h += '<p class="note">' + esc(std.source.note) + "</p>";
     if (r.status !== "error") {
+      /* result meter: required band, design-target tick, achieved marker */
+      var lo = std.min !== null && std.min !== undefined ? std.min : r.target, hi = std.max || 0;
+      var end = Math.max(r.achieved, hi, r.target, lo) * 1.2 || 1;
+      var pc = function (v) { return (Math.max(0, Math.min(v, end)) / end * 100).toFixed(1); };
+      h += '<div class="hero ' + r.status + '"><div class="h-row"><div class="h-num"><b>' + r0(r.achieved) + "</b><i>lux</i><span>average on the work plane · target " + r0(r.target) + '</span></div><span class="pill ' + r.status + '">' + PILL[r.status] + "</span></div>" +
+        '<div class="meter"><div class="m-band" style="left:' + pc(lo) + "%;width:" + ((hi ? pc(hi) : 100) - pc(lo)).toFixed(1) + '%"></div><div class="m-tick" style="left:' + pc(r.target) + '%"></div><div class="m-dot" style="left:' + pc(r.achieved) + '%"></div></div>' +
+        '<div class="m-scale"><span>0</span><span>' + r0(end) + " lux</span></div></div>";
       h += drawPlan(r);
       var qty = r.kind === "surface"
         ? r.qty + " strips x " + r1(r.stripLength) + " m x " + r1(r.moduleWidth) + " m (" + r0(r.coverage * 100) + "% of ceiling)"
@@ -231,13 +251,13 @@
       }
     });
     if (!n) { $("summary").innerHTML = ""; return; }
-    var list = order.map(function (id) { var f = byFx[id]; return "<li>" + esc(f.name) + ": <b>" + (f.surface ? r1(f.area) + " m2" : f.qty + " pcs") + "</b></li>"; }).join("");
+    var list = order.map(function (id) { var f = byFx[id]; return "<li><span>" + esc(f.name) + "</span><b>" + (f.surface ? r1(f.area) + " m²" : f.qty + " pcs") + "</b></li>"; }).join("");
     var lpd = area ? watt / area : 0;
     $("summary").innerHTML =
-      '<div class="stat"><b>' + ok + " / " + n + "</b><span>rooms meeting the target</span></div>" +
-      '<div class="stat"><b>' + r1(watt / 1000) + ' kW</b><span>installed lighting power</span></div>' +
-      '<div class="stat"><b>' + r1(lpd) + ' W/m2</b><span>overall, over ' + r0(area) + " m2<br>reference " + STD.buildingLpd.value + " (" + esc(STD.buildingLpd.ref) + ")</span></div>" +
-      '<div class="stat wide"><span>Fixture totals</span><ul>' + (list || "<li>-</li>") + "</ul></div>";
+      '<div class="stat"><span class="k">Rooms on target</span><b>' + ok + "<i>/ " + n + '</i></b><div class="track' + (ok < n ? " part" : "") + '"><i style="width:' + (ok / n * 100).toFixed(0) + '%"></i></div></div>' +
+      '<div class="stat"><span class="k">Installed power</span><b>' + r1(watt / 1000) + '<i>kW</i></b><span class="s">over ' + r0(area) + " m² of floor</span></div>" +
+      '<div class="stat"><span class="k">Power density</span><b>' + r1(lpd) + '<i>W/m²</i></b><span class="s">reference ' + STD.buildingLpd.value + " (" + esc(STD.buildingLpd.ref) + ")</span></div>" +
+      '<div class="stat"><span class="k">Fixture totals</span><ul>' + (list || "<li><span>-</span></li>") + "</ul></div>";
   }
 
   /* ---------------- fixtures tab ---------------- */
@@ -378,6 +398,11 @@
     Array.prototype.forEach.call(document.querySelectorAll(".tab"), function (s) { s.classList.toggle("on", s.id === "tab-" + t); });
   });
   $("projName").addEventListener("input", function () { state.name = $("projName").value; save(); });
+  $("btnTheme").addEventListener("click", function () {
+    var root = document.documentElement, next = root.getAttribute("data-theme") === "light" ? "dark" : "light";
+    root.setAttribute("data-theme", next);
+    try { localStorage.setItem("gdsiLighting.theme", next); } catch (e) { /* storage unavailable */ }
+  });
   $("setMf").addEventListener("change", function () {
     var v = C.num($("setMf").value); if (!v || v < 0.5 || v > 1) v = 0.8;
     state.settings.mf = v; $("setMf").value = v; renderRooms(); save();
