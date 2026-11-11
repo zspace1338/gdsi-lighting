@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=1280">
+<title>GDSI Lighting Calculator</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="top">
+  <div class="brand">GDSI Lighting Calculator <span class="ver">v0.1 - manual entry</span></div>
+  <nav class="tabs" id="tabs">
+    <button data-tab="rooms" class="on">1. Rooms</button>
+    <button data-tab="fixtures">2. Fixtures</button>
+    <button data-tab="standards">3. Standards</button>
+  </nav>
+  <div class="proj">
+    <input id="projName" type="text" placeholder="Project name" aria-label="Project name">
+    <button id="btnOpen" class="ghost">Open</button>
+    <button id="btnSave" class="ghost">Save</button>
+    <button id="btnCsv" class="primary">Export schedule (CSV)</button>
+    <input id="fileOpen" type="file" accept=".json" hidden>
+  </div>
+</header>
+
+<main>
+  <!-- ROOMS -->
+  <section id="tab-rooms" class="tab on">
+    <div class="bar">
+      <button id="btnAdd" class="primary">+ Add room</button>
+      <label>Maintenance factor
+        <input id="setMf" type="number" min="0.5" max="1" step="0.05">
+      </label>
+      <label>Room finishes
+        <select id="setRefl"></select>
+      </label>
+      <span class="hint">Preliminary sizing by the lumen method. Final verification by DIALux or the lighting vendor.</span>
+    </div>
+    <div class="split">
+      <div class="left">
+        <table class="grid" id="roomTable">
+          <thead>
+            <tr>
+              <th class="c-no">#</th>
+              <th>Room name</th>
+              <th>Space type</th>
+              <th class="c-n">Length<br>(m)</th>
+              <th class="c-n">Width<br>(m)</th>
+              <th class="c-n">Ceiling<br>(m)</th>
+              <th class="c-n">Target<br>(lux)</th>
+              <th>Fixture</th>
+              <th class="c-n">Qty</th>
+              <th class="c-n">Result<br>(lux)</th>
+              <th>Check</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="roomBody"></tbody>
+        </table>
+        <div id="emptyRooms" class="empty">No rooms yet. Click <b>+ Add room</b> and enter the room size.</div>
+        <div id="summary" class="summary"></div>
+      </div>
+      <aside class="right" id="detail"></aside>
+    </div>
+  </section>
+
+  <!-- FIXTURES -->
+  <section id="tab-fixtures" class="tab">
+    <div class="bar">
+      <span class="hint">Built-in items are generic placeholders. Register the fixtures actually used on site - they appear at the top of the fixture list.</span>
+      <button id="btnFxExport" class="ghost">Export fixtures</button>
+      <button id="btnFxImport" class="ghost">Import fixtures</button>
+      <input id="fileFx" type="file" accept=".json" hidden>
+    </div>
+    <div class="split">
+      <div class="left">
+        <table class="grid" id="fxTable">
+          <thead>
+            <tr><th>Name</th><th>Type</th><th class="c-n">Output</th><th class="c-n">Power</th><th class="c-n">lm/W</th><th class="c-n">CCT (K)</th><th class="c-n">CRI</th><th>Status</th><th></th></tr>
+          </thead>
+          <tbody id="fxBody"></tbody>
+        </table>
+      </div>
+      <aside class="right">
+        <h3 id="fxFormTitle">Register a fixture</h3>
+        <form id="fxForm" class="form">
+          <label>Name / model <input name="name" type="text" required placeholder="e.g. Maker ABC-1234 downlight"></label>
+          <label>Type
+            <select name="kind">
+              <option value="point">Point (downlight, spot, panel, high bay)</option>
+              <option value="linear">Linear (batten, pendant line)</option>
+              <option value="surface">Surface Light (luminous ceiling)</option>
+            </select>
+          </label>
+          <label><span id="lblLm">Luminous flux (lm per fixture)</span> <input name="lm" type="number" min="1" step="any" required></label>
+          <label><span id="lblW">Power (W per fixture)</span> <input name="watt" type="number" min="0" step="any" required></label>
+          <label>Colour temperature (K) <input name="cct" type="number" min="1000" step="100"></label>
+          <label>CRI (Ra) <input name="cri" type="number" min="0" max="100" step="1"></label>
+          <label id="rowShr">Max spacing / mounting height <input name="shr" type="number" min="0.5" max="3" step="0.1" placeholder="1.5"></label>
+          <label id="rowLen">Length (m) <input name="length" type="number" min="0.1" step="0.1" placeholder="1.2"></label>
+          <label>Note <input name="note" type="text" placeholder="datasheet link, IP rating, etc."></label>
+          <div class="formbtn">
+            <button type="submit" class="primary" id="fxSubmit">Register</button>
+            <button type="button" class="ghost" id="fxCancel" hidden>Cancel</button>
+          </div>
+        </form>
+      </aside>
+    </div>
+  </section>
+
+  <!-- STANDARDS -->
+  <section id="tab-standards" class="tab">
+    <div class="bar">
+      <span class="hint"><span class="badge manual">GDSI MANUAL</span> figure from the GDSI 2.0 Guideline.
+      <span class="badge supp">IS 3646</span> used only where the manual gives no figure.
+      <span class="badge none">ENTER</span> no figure found - the designer enters the target.</span>
+    </div>
+    <table class="grid" id="stdTable">
+      <thead><tr><th>Space type</th><th class="c-n">Min</th><th class="c-n">Design</th><th class="c-n">Max</th><th class="c-n">CCT (K)</th><th>Source</th><th>Note</th></tr></thead>
+      <tbody id="stdBody"></tbody>
+    </table>
+  </section>
+</main>
+
+<script src="data/standards.js"></script>
+<script src="data/fixtures.js"></script>
+<script src="js/calc.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>

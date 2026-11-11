@@ -1,0 +1,394 @@
+/* GDSI Lighting Calculator - UI (stage 1: manual room entry). */
+(function () {
+  "use strict";
+  var C = window.GDSICalc, STD = window.GDSI_STANDARDS, BUILTIN = window.GDSI_FIXTURES;
+  var KEY = "gdsiLighting.v1";
+  var $ = function (id) { return document.getElementById(id); };
+  var r0 = function (v) { return C.round(v, 0).toLocaleString("en-US"); };
+  var r1 = function (v) { return C.round(v, 1).toFixed(1); };
+  var r2 = function (v) { return C.round(v, 2).toFixed(2); };
+
+  function esc(s) {
+    return String(s === null || s === undefined ? "" : s).replace(/[&<>"']/g, function (c) {
+      return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
+    });
+  }
+
+  /* ---------------- state ---------------- */
+  var state = { name: "", rooms: [], userFixtures: [], settings: { mf: 0.8, reflectance: "light" }, sel: 0 };
+  try {
+    var saved = JSON.parse(localStorage.getItem(KEY) || "null");
+    if (saved && Array.isArray(saved.rooms)) applyProject(saved);
+  } catch (e) { /* start empty */ }
+
+  function applyProject(p) {
+    state.name = p.name || "";
+    state.rooms = Array.isArray(p.rooms) ? p.rooms : [];
+    state.userFixtures = Array.isArray(p.userFixtures) ? p.userFixtures : [];
+    state.settings = { mf: C.num(p.settings && p.settings.mf) || 0.8, reflectance: (p.settings && p.settings.reflectance) || "light" };
+    state.sel = 0;
+  }
+  function save() { try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) { /* storage unavailable */ } }
+
+  function stdById(id) { for (var i = 0; i < STD.spaces.length; i++) if (STD.spaces[i].id === id) return STD.spaces[i]; return STD.spaces[0]; }
+  function allFixtures() { return state.userFixtures.concat(BUILTIN); }
+  function fxById(id) { var a = allFixtures(); for (var i = 0; i < a.length; i++) if (a[i].id === id) return a[i]; return null; }
+  function fxFor(room) { return (room.fixtureId && fxById(room.fixtureId)) || fxById(stdById(room.use).defaultFixture) || BUILTIN[0]; }
+  function isUser(fx) { return state.userFixtures.indexOf(fx) >= 0; }
+  function result(room) { return C.calcRoom(room, stdById(room.use), fxFor(room), state.settings, fxById("gen-spot")); }
+
+  /* ---------------- rooms table ---------------- */
+  function useOptions(sel) {
+    return STD.groups.map(function (g) {
+      var o = STD.spaces.filter(function (s) { return s.group === g; }).map(function (s) {
+        return '<option value="' + s.id + '"' + (s.id === sel ? " selected" : "") + ">" + esc(s.name) + "</option>";
+      }).join("");
+      return '<optgroup label="' + esc(g) + '">' + o + "</optgroup>";
+    }).join("");
+  }
+  function fxOptions(room) {
+    var def = fxById(stdById(room.use).defaultFixture) || BUILTIN[0];
+    var opt = function (f) { return '<option value="' + esc(f.id) + '"' + (f.id === room.fixtureId ? " selected" : "") + ">" + esc(f.name) + "</option>"; };
+    var h = '<option value="">Auto: ' + esc(def.name) + "</option>";
+    if (state.userFixtures.length) h += '<optgroup label="Registered">' + state.userFixtures.map(opt).join("") + "</optgroup>";
+    return h + '<optgroup label="Generic (placeholder)">' + BUILTIN.map(opt).join("") + "</optgroup>";
+  }
+  function numInput(f, v, ph) {
+    return '<input type="number" data-f="' + f + '" min="0" step="any" value="' + esc(v) + '"' + (ph !== undefined ? ' placeholder="' + esc(ph) + '"' : "") + ">";
+  }
+
+  function renderRooms() {
+    var body = $("roomBody");
+    body.innerHTML = state.rooms.map(function (room, i) {
+      var std = stdById(room.use);
+      return '<tr data-i="' + i + '"' + (i === state.sel ? ' class="sel"' : "") + ">" +
+        '<td class="c-no">' + (i + 1) + "</td>" +
+        '<td class="name"><input type="text" data-f="name" value="' + esc(room.name) + '" placeholder="Room name"></td>' +
+        '<td class="type"><select data-f="use">' + useOptions(room.use) + "</select></td>" +
+        '<td class="c-n">' + numInput("length", room.length) + "</td>" +
+        '<td class="c-n">' + numInput("width", room.width) + "</td>" +
+        '<td class="c-n">' + numInput("height", room.height) + "</td>" +
+        '<td class="c-n">' + numInput("targetLux", room.targetLux, std.target === null ? "enter" : std.target) + "</td>" +
+        '<td class="fx"><select data-f="fixtureId">' + fxOptions(room) + "</select></td>" +
+        '<td class="res c-n" data-o="qty"></td><td class="res c-n" data-o="lux"></td><td data-o="chk"></td>' +
+        '<td><button class="x" data-del title="Delete room" aria-label="Delete room">&times;</button></td></tr>';
+    }).join("");
+    $("emptyRooms").hidden = state.rooms.length > 0;
+    $("roomTable").hidden = state.rooms.length === 0;
+    for (var i = 0; i < state.rooms.length; i++) fillRow(i);
+    renderDetail(true);
+    renderSummary();
+  }
+
+  var PILL = { ok: "OK", over: "Too bright", warn: "Check", fail: "Too dark", error: "Input needed" };
+  function fillRow(i) {
+    var tr = $("roomBody").children[i]; if (!tr) return;
+    var r = result(state.rooms[i]);
+    var cell = function (k) { return tr.querySelector('[data-o="' + k + '"]'); };
+    cell("qty").textContent = r.status === "error" ? "-" : (r.kind === "surface" ? r.qty + " x " + r1(r.stripLength) + " m" + (r.suppQty ? " + " + r.suppQty + " spot" : "") : r.qty);
+    cell("lux").textContent = r.status === "error" ? "-" : r0(r.achieved);
+    cell("chk").innerHTML = '<span class="pill ' + r.status + '">' + PILL[r.status] + "</span>";
+  }
+
+  function onRoomEdit(e) {
+    var el = e.target, f = el.getAttribute("data-f"); if (!f) return;
+    var tr = el.closest("tr"), i = Number(tr.getAttribute("data-i")), room = state.rooms[i];
+    room[f] = el.value;
+    if (f === "height") room.heightAuto = false;
+    if (f === "use") {
+      var std = stdById(room.use);
+      if (room.heightAuto) { room.height = std.defaultH; tr.querySelector('[data-f="height"]').value = std.defaultH; }
+      tr.querySelector('[data-f="targetLux"]').placeholder = std.target === null ? "enter" : std.target;
+      tr.querySelector('[data-f="fixtureId"]').innerHTML = fxOptions(room);
+    }
+    fillRow(i);
+    select(i, f === "use" || f === "name");
+    renderSummary();
+    save();
+  }
+  function select(i, rebuildExtra) {
+    var changed = state.sel !== i;
+    state.sel = i;
+    var rows = $("roomBody").children;
+    for (var k = 0; k < rows.length; k++) rows[k].classList.toggle("sel", k === i);
+    renderDetail(changed || rebuildExtra);
+  }
+
+  $("roomBody").addEventListener("input", onRoomEdit);
+  $("roomBody").addEventListener("change", onRoomEdit);
+  $("roomBody").addEventListener("focusin", function (e) { var tr = e.target.closest("tr"); if (tr) select(Number(tr.getAttribute("data-i"))); });
+  $("roomBody").addEventListener("click", function (e) {
+    var tr = e.target.closest("tr"); if (!tr) return;
+    var i = Number(tr.getAttribute("data-i"));
+    if (e.target.hasAttribute("data-del")) {
+      var nm = state.rooms[i].name || "Room " + (i + 1);
+      if (!confirm('Delete "' + nm + '"?')) return;
+      state.rooms.splice(i, 1);
+      state.sel = Math.max(0, Math.min(state.sel, state.rooms.length - 1));
+      renderRooms(); save();
+    } else select(i);
+  });
+  $("btnAdd").addEventListener("click", function () {
+    var std = stdById("showroom");
+    state.rooms.push({ name: "", use: std.id, length: "", width: "", height: std.defaultH, heightAuto: true, targetLux: "", fixtureId: "", suspension: "", workPlane: "" });
+    state.sel = state.rooms.length - 1;
+    renderRooms(); save();
+    var tr = $("roomBody").lastElementChild;
+    if (tr) tr.querySelector('[data-f="name"]').focus();
+  });
+
+  /* ---------------- detail panel ---------------- */
+  function srcBadge(std) {
+    if (std.source.type === "manual") return '<span class="badge manual">GDSI MANUAL</span> ' + esc(std.source.ref);
+    if (std.source.type === "is3646") return '<span class="badge supp">IS 3646</span> ' + esc(std.source.ref);
+    return '<span class="badge none">ENTER</span> No standard figure';
+  }
+  function rangeText(std) {
+    if (std.target === null) return "Target to be entered";
+    var t = std.max !== null ? std.min + " - " + std.max + " lux" : "min " + std.min + " lux";
+    return t + (std.cct ? ", " + std.cct + " K" : "");
+  }
+
+  function drawPlan(r) {
+    var m = 34, bw = 400 - 2 * m, bh = 250;
+    var sc = Math.min(bw / r.L, bh / r.W), w = r.L * sc, h = r.W * sc;
+    var ox = (400 - w) / 2, oy = m - 10, H = h + oy + 30;
+    var s = '<svg viewBox="0 0 400 ' + Math.round(H) + '" role="img" aria-label="Fixture layout plan">';
+    s += '<rect x="' + ox + '" y="' + oy + '" width="' + w + '" height="' + h + '" fill="#fff" stroke="#1c1f24" stroke-width="1.5"/>';
+    r.strips.forEach(function (p) {
+      s += '<rect x="' + (ox + p.x * sc) + '" y="' + (oy + p.y * sc) + '" width="' + p.w * sc + '" height="' + p.h * sc + '" fill="#cfeef7" stroke="#00aad2"/>';
+    });
+    var half = r.lineLength ? Math.max(3, (r.lineLength * sc) / 2) : 0;
+    var rad = Math.max(2, Math.min(5, Math.min(r.sx || 1, r.sy || 1) * sc * 0.18));
+    r.positions.forEach(function (p) {
+      var x = ox + p.x * sc, y = oy + p.y * sc;
+      s += half ? '<line x1="' + (x - half) + '" y1="' + y + '" x2="' + (x + half) + '" y2="' + y + '" stroke="#00aad2" stroke-width="3" stroke-linecap="round"/>'
+                : '<circle cx="' + x + '" cy="' + y + '" r="' + rad + '" fill="#00aad2"/>';
+    });
+    s += '<text x="200" y="' + (oy + h + 18) + '" text-anchor="middle" font-size="12" fill="#68707c">' + r2(r.L) + " m</text>";
+    s += '<text x="' + (ox - 8) + '" y="' + (oy + h / 2) + '" text-anchor="middle" font-size="12" fill="#68707c" transform="rotate(-90 ' + (ox - 8) + " " + (oy + h / 2) + ')">' + r2(r.W) + " m</text>";
+    return s + "</svg>";
+  }
+
+  function renderDetail(rebuild) {
+    var box = $("detail"), room = state.rooms[state.sel];
+    if (!room) { box.innerHTML = '<p class="hint">Select a room to see the standard, the calculation and the layout.</p>'; return; }
+    var std = stdById(room.use);
+    if (rebuild || !$("detailRes")) {
+      box.innerHTML = '<div id="detailRes"></div><div class="extra">' +
+        '<label>Suspension below ceiling (m)<input type="number" data-x="suspension" min="0" step="0.1" value="' + esc(room.suspension) + '" placeholder="0"></label>' +
+        '<label>Work plane height (m)<input type="number" data-x="workPlane" min="0" step="0.05" value="' + esc(room.workPlane) + '" placeholder="' + std.workPlane + '"></label></div>';
+    }
+    var r = result(room), fx = fxFor(room);
+    var h = "<h3>" + esc(room.name || "Room " + (state.sel + 1)) + " - " + esc(std.name) + "</h3>";
+    h += '<p class="src">' + srcBadge(std) + "<br><b>" + rangeText(std) + "</b></p>";
+    h += '<p class="note">' + esc(std.source.note) + "</p>";
+    if (r.status !== "error") {
+      h += drawPlan(r);
+      var qty = r.kind === "surface"
+        ? r.qty + " strips x " + r1(r.stripLength) + " m x " + r1(r.moduleWidth) + " m (" + r0(r.coverage * 100) + "% of ceiling)"
+        : r.qty + " pcs (" + r.cols + " x " + r.rows + ")";
+      if (r.suppQty) qty += "<br>+ " + r.suppQty + " pcs " + esc(r.suppName);
+      var sp = r.kind === "surface" ? "pitch " + r2(r.pitch) + " m" : r2(r.sx) + " x " + r2(r.sy) + " m";
+      h += '<dl class="kv">' +
+        "<dt>Fixture</dt><dd>" + esc(fx.name) + "</dd>" +
+        "<dt>Quantity</dt><dd><b>" + qty + "</b></dd>" +
+        "<dt>Spacing</dt><dd>" + sp + "</dd>" +
+        "<dt>Average illuminance</dt><dd><b>" + r0(r.achieved) + " lux</b> (target " + r0(r.target) + ")</dd>" +
+        "<dt>Installed power</dt><dd>" + r0(r.totalWatt) + " W (" + r1(r.lpd) + " W/m2)</dd>" +
+        "<dt>Floor area</dt><dd>" + r1(r.area) + " m2</dd>" +
+        "<dt>Mounting height above work plane</dt><dd>" + r2(r.Hm) + " m</dd>" +
+        "<dt>Room index K</dt><dd>" + r2(r.K) + "</dd>" +
+        "<dt>Utilisation factor (generic table)</dt><dd>" + r2(r.UF) + "</dd>" +
+        "<dt>Maintenance factor</dt><dd>" + r2(r.MF) + "</dd></dl>";
+    }
+    if (r.info) h += '<ul class="msgs"><li class="info">' + esc(r.info) + "</li></ul>";
+    var notes = r.messages.slice();
+    if (r.status !== "error" && !isUser(fx)) notes.push("Generic placeholder fixture - register the real fixture to confirm the quantity.");
+    if (room.heightAuto) notes.push("Ceiling height " + room.height + " m is a default - enter the real height.");
+    h += '<ul class="msgs">' + notes.map(function (t) { return "<li" + (r.status === "error" || r.status === "fail" ? ' class="err"' : "") + ">" + esc(t) + "</li>"; }).join("") + "</ul>";
+    $("detailRes").innerHTML = h;
+  }
+  $("detail").addEventListener("input", function (e) {
+    var k = e.target.getAttribute("data-x"), room = state.rooms[state.sel]; if (!k || !room) return;
+    room[k] = e.target.value;
+    fillRow(state.sel); renderDetail(false); renderSummary(); save();
+  });
+
+  /* ---------------- summary ---------------- */
+  function renderSummary() {
+    var n = state.rooms.length, ok = 0, area = 0, watt = 0, byFx = {}, order = [];
+    state.rooms.forEach(function (room) {
+      var r = result(room); if (r.status === "error") return;
+      if (r.status === "ok" || r.status === "over" || r.status === "warn") ok++;
+      area += r.area; watt += r.totalWatt;
+      var fx = fxFor(room);
+      if (!byFx[fx.id]) { byFx[fx.id] = { name: fx.name, qty: 0, area: 0, surface: fx.kind === "surface" }; order.push(fx.id); }
+      if (fx.kind === "surface") byFx[fx.id].area += r.luminousArea; else byFx[fx.id].qty += r.qty;
+      if (r.suppQty) {
+        if (!byFx[r.suppId]) { byFx[r.suppId] = { name: r.suppName, qty: 0, area: 0, surface: false }; order.push(r.suppId); }
+        byFx[r.suppId].qty += r.suppQty;
+      }
+    });
+    if (!n) { $("summary").innerHTML = ""; return; }
+    var list = order.map(function (id) { var f = byFx[id]; return "<li>" + esc(f.name) + ": <b>" + (f.surface ? r1(f.area) + " m2" : f.qty + " pcs") + "</b></li>"; }).join("");
+    var lpd = area ? watt / area : 0;
+    $("summary").innerHTML =
+      '<div class="stat"><b>' + ok + " / " + n + "</b><span>rooms meeting the target</span></div>" +
+      '<div class="stat"><b>' + r1(watt / 1000) + ' kW</b><span>installed lighting power</span></div>' +
+      '<div class="stat"><b>' + r1(lpd) + ' W/m2</b><span>overall, over ' + r0(area) + " m2<br>reference " + STD.buildingLpd.value + " (" + esc(STD.buildingLpd.ref) + ")</span></div>" +
+      '<div class="stat wide"><span>Fixture totals</span><ul>' + (list || "<li>-</li>") + "</ul></div>";
+  }
+
+  /* ---------------- fixtures tab ---------------- */
+  var KIND = { point: "Point", linear: "Linear", surface: "Surface Light" };
+  var editingId = null;
+  function renderFixtures() {
+    $("fxBody").innerHTML = allFixtures().map(function (f) {
+      var u = isUser(f), per = f.kind === "surface" ? "/m2" : "";
+      return "<tr><td>" + esc(f.name) + (f.note ? '<br><span class="hint">' + esc(f.note) + "</span>" : "") + "</td><td>" + KIND[f.kind] + "</td>" +
+        '<td class="c-n">' + r0(f.lm) + " lm" + per + '</td><td class="c-n">' + esc(f.watt) + " W" + per + '</td>' +
+        '<td class="c-n">' + (Number(f.watt) > 0 ? r0(f.lm / f.watt) : "-") + '</td><td class="c-n">' + esc(f.cct || "-") + '</td><td class="c-n">' + esc(f.cri || "-") + "</td>" +
+        "<td>" + (u ? '<span class="badge reg">REGISTERED</span>' : '<span class="badge gen">GENERIC</span>') + "</td>" +
+        "<td>" + (u ? '<button class="link" data-edit="' + esc(f.id) + '">Edit</button><button class="x" data-rm="' + esc(f.id) + '" title="Delete fixture" aria-label="Delete fixture">&times;</button>' : "") + "</td></tr>";
+    }).join("");
+  }
+  function syncFxForm() {
+    var k = $("fxForm").elements.kind.value, surf = k === "surface";
+    $("lblLm").textContent = surf ? "Luminous flux (lm per m2 of luminous surface)" : "Luminous flux (lm per fixture)";
+    $("lblW").textContent = surf ? "Power (W per m2 of luminous surface)" : "Power (W per fixture)";
+    $("rowShr").hidden = surf; $("rowLen").hidden = k !== "linear";
+  }
+  function resetFxForm() {
+    editingId = null; $("fxForm").reset(); syncFxForm();
+    $("fxFormTitle").textContent = "Register a fixture"; $("fxSubmit").textContent = "Register"; $("fxCancel").hidden = true;
+  }
+  $("fxForm").elements.kind.addEventListener("change", syncFxForm);
+  $("fxCancel").addEventListener("click", resetFxForm);
+  $("fxForm").addEventListener("submit", function (e) {
+    e.preventDefault();
+    var el = $("fxForm").elements;
+    var f = { id: editingId || "usr-" + Date.now().toString(36), kind: el.kind.value, name: el.name.value.trim(), lm: Number(el.lm.value), watt: Number(el.watt.value), note: el.note.value.trim() };
+    if (el.cct.value) f.cct = Number(el.cct.value);
+    if (el.cri.value) f.cri = Number(el.cri.value);
+    if (f.kind === "surface") { f.moduleWidth = 1.5; f.gap = 2.4; } else f.shr = Number(el.shr.value) || 1.5;
+    if (f.kind === "linear") f.length = Number(el.length.value) || 1.2;
+    var at = -1;
+    state.userFixtures.forEach(function (x, i) { if (x.id === f.id) at = i; });
+    if (at >= 0) state.userFixtures[at] = f; else state.userFixtures.push(f);
+    resetFxForm(); renderFixtures(); renderRooms(); save();
+  });
+  $("fxBody").addEventListener("click", function (e) {
+    var id = e.target.getAttribute("data-edit") || e.target.getAttribute("data-rm"); if (!id) return;
+    var f = fxById(id); if (!f) return;
+    if (e.target.hasAttribute("data-rm")) {
+      var used = state.rooms.filter(function (r) { return r.fixtureId === id; }).length;
+      if (!confirm('Delete "' + f.name + '"?' + (used ? " " + used + " room(s) using it will go back to the default fixture." : ""))) return;
+      state.userFixtures = state.userFixtures.filter(function (x) { return x.id !== id; });
+      state.rooms.forEach(function (r) { if (r.fixtureId === id) r.fixtureId = ""; });
+      if (editingId === id) resetFxForm();
+      renderFixtures(); renderRooms(); save();
+      return;
+    }
+    var el = $("fxForm").elements;
+    editingId = id; el.name.value = f.name; el.kind.value = f.kind; el.lm.value = f.lm; el.watt.value = f.watt;
+    el.cct.value = f.cct || ""; el.cri.value = f.cri || ""; el.shr.value = f.shr || ""; el.length.value = f.length || ""; el.note.value = f.note || "";
+    syncFxForm();
+    $("fxFormTitle").textContent = "Edit fixture"; $("fxSubmit").textContent = "Save changes"; $("fxCancel").hidden = false;
+    el.name.focus();
+  });
+
+  /* ---------------- standards tab ---------------- */
+  function renderStandards() {
+    var v = function (x) { return x === null ? "-" : x; };
+    $("stdBody").innerHTML = STD.spaces.map(function (s) {
+      return "<tr><td>" + esc(s.name) + '<br><span class="hint">' + esc(s.group) + '</span></td><td class="c-n">' + v(s.min) + '</td><td class="c-n"><b>' + v(s.target) +
+        '</b></td><td class="c-n">' + v(s.max) + '</td><td class="c-n">' + v(s.cct) + "</td><td>" + srcBadge(s) + '</td><td class="hint">' + esc(s.source.note) + "</td></tr>";
+    }).join("");
+  }
+
+  /* ---------------- files ---------------- */
+  function download(name, text, mime) {
+    var a = document.createElement("a");
+    a.href = URL.createObjectURL(new Blob([text], { type: mime }));
+    a.download = name; document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(function () { URL.revokeObjectURL(a.href); }, 1000);
+  }
+  function fileBase() { return (state.name || "gdsi-lighting").replace(/[\\/:*?"<>|]+/g, "_"); }
+  function readJson(input, cb) {
+    var file = input.files[0]; if (!file) return;
+    var rd = new FileReader();
+    rd.onload = function () {
+      try { cb(JSON.parse(rd.result)); } catch (e) { alert("This file could not be read. Choose a JSON file exported from this app."); }
+      input.value = "";
+    };
+    rd.readAsText(file);
+  }
+
+  $("btnSave").addEventListener("click", function () {
+    download(fileBase() + ".json", JSON.stringify({ app: "gdsi-lighting", version: 1, name: state.name, settings: state.settings, rooms: state.rooms, userFixtures: state.userFixtures }, null, 2), "application/json");
+  });
+  $("btnOpen").addEventListener("click", function () { $("fileOpen").click(); });
+  $("fileOpen").addEventListener("change", function () {
+    readJson($("fileOpen"), function (p) {
+      if (p.app !== "gdsi-lighting" || !Array.isArray(p.rooms)) { alert("This is not a GDSI Lighting project file."); return; }
+      if (state.rooms.length && !confirm("Replace the current project with the opened file?")) return;
+      applyProject(p); init(); save();
+    });
+  });
+  $("btnFxExport").addEventListener("click", function () {
+    if (!state.userFixtures.length) { alert("No registered fixtures to export yet."); return; }
+    download("gdsi-fixtures.json", JSON.stringify({ app: "gdsi-lighting-fixtures", version: 1, fixtures: state.userFixtures }, null, 2), "application/json");
+  });
+  $("btnFxImport").addEventListener("click", function () { $("fileFx").click(); });
+  $("fileFx").addEventListener("change", function () {
+    readJson($("fileFx"), function (p) {
+      if (p.app !== "gdsi-lighting-fixtures" || !Array.isArray(p.fixtures)) { alert("This is not a GDSI Lighting fixture file."); return; }
+      p.fixtures.forEach(function (f) {
+        if (!f || !f.id || !f.name || !(Number(f.lm) > 0) || !KIND[f.kind]) return;
+        var at = -1;
+        state.userFixtures.forEach(function (x, i) { if (x.id === f.id) at = i; });
+        if (at >= 0) state.userFixtures[at] = f; else state.userFixtures.push(f);
+      });
+      renderFixtures(); renderRooms(); save();
+    });
+  });
+
+  $("btnCsv").addEventListener("click", function () {
+    if (!state.rooms.length) { alert("Add a room first."); return; }
+    var q = function (v) { v = String(v === null || v === undefined ? "" : v); return /[",\r\n]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v; };
+    var rows = [["No", "Room", "Space type", "Length (m)", "Width (m)", "Area (m2)", "Ceiling height (m)", "Standard", "Required (lux)", "Design target (lux)", "Fixture", "Fixture status", "Qty", "Unit", "Layout", "Average illuminance (lux)", "Power (W)", "W/m2", "Check", "Notes"]];
+    state.rooms.forEach(function (room, i) {
+      var std = stdById(room.use), fx = fxFor(room), r = result(room), e = r.status === "error";
+      var srcName = std.source.type === "manual" ? STD.manualTitle + " " + std.source.ref : std.source.type === "is3646" ? STD.supplementTitle + " " + std.source.ref : "Entered by designer";
+      rows.push([i + 1, room.name || "Room " + (i + 1), std.name, room.length, room.width, e ? "" : r1(r.area), room.height, srcName, rangeText(std), e ? "" : C.round(r.target),
+        fx.name, isUser(fx) ? "Registered" : "Generic placeholder", e ? "" : (r.kind === "surface" ? r1(r.luminousArea) : r.qty), r.kind === "surface" ? "m2" : "pcs",
+        e ? "" : (r.kind === "surface" ? r.qty + " strips x " + r1(r.stripLength) + " m x " + r1(r.moduleWidth) + " m" + (r.suppQty ? " + " + r.suppQty + " pcs " + r.suppName : "") : r.cols + " x " + r.rows + " @ " + r2(r.sx) + " x " + r2(r.sy) + " m"),
+        e ? "" : C.round(r.achieved), e ? "" : C.round(r.totalWatt), e ? "" : r1(r.lpd), PILL[r.status], (r.info ? [r.info] : []).concat(r.messages).join(" / ")]);
+    });
+    rows.push([]);
+    rows.push(["Assumptions", "Maintenance factor " + state.settings.mf, C.UF_TABLES[state.settings.reflectance].label, "Utilisation factor: generic table", "Preliminary sizing - verify with DIALux or the lighting vendor"]);
+    download(fileBase() + "-lighting-schedule.csv", "﻿" + rows.map(function (r) { return r.map(q).join(","); }).join("\r\n"), "text/csv;charset=utf-8");
+  });
+
+  /* ---------------- header ---------------- */
+  $("tabs").addEventListener("click", function (e) {
+    var t = e.target.getAttribute("data-tab"); if (!t) return;
+    Array.prototype.forEach.call($("tabs").children, function (b) { b.classList.toggle("on", b === e.target); });
+    Array.prototype.forEach.call(document.querySelectorAll(".tab"), function (s) { s.classList.toggle("on", s.id === "tab-" + t); });
+  });
+  $("projName").addEventListener("input", function () { state.name = $("projName").value; save(); });
+  $("setMf").addEventListener("change", function () {
+    var v = C.num($("setMf").value); if (!v || v < 0.5 || v > 1) v = 0.8;
+    state.settings.mf = v; $("setMf").value = v; renderRooms(); save();
+  });
+  $("setRefl").addEventListener("change", function () { state.settings.reflectance = $("setRefl").value; renderRooms(); save(); });
+
+  function init() {
+    $("projName").value = state.name;
+    $("setMf").value = state.settings.mf;
+    $("setRefl").innerHTML = Object.keys(C.UF_TABLES).map(function (k) { return '<option value="' + k + '"' + (k === state.settings.reflectance ? " selected" : "") + ">" + esc(C.UF_TABLES[k].label) + "</option>"; }).join("");
+    resetFxForm(); renderFixtures(); renderStandards(); renderRooms();
+  }
+  init();
+})();
