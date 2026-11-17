@@ -26,7 +26,14 @@ body { margin: 0; font: 9.2pt/1.55 "Segoe UI", "Malgun Gothic", sans-serif; colo
 .cover h1 { font-size: 34pt; line-height: 1.12; font-weight: 600; letter-spacing: -.02em; margin: 14mm 0 0; }
 .cover h1 span { display: block; color: #e7b765; }
 .cover .sub { font-size: 13pt; color: #c2c7ce; margin-top: 5mm; }
-.cover img { width: 100%; border-radius: 3mm; border: .3mm solid #2a2e34; margin-top: 14mm; }
+.cover img { width: 100%; border-radius: 3mm; border: .3mm solid #2a2e34; margin-top: 9mm; }
+.cover .golinks { display: flex; gap: 4mm; margin-top: 8mm; }
+.cover .go { display: flex; flex-direction: column; gap: .6mm; padding: 3mm 5mm; border-radius: 2.5mm; border: .35mm solid #3a3f46; color: #eef0f2; text-decoration: none; min-width: 44mm; }
+.cover .go b { font-size: 10.5pt; font-weight: 600; } .cover .go b::after { content: "  ↗"; color: #e7b765; }
+.cover .go span { font-size: 7.5pt; color: #9aa1ab; }
+.cover .go.primary { background: #e7b765; border-color: #e7b765; color: #1b1305; } .cover .go.primary b::after { color: #1b1305; } .cover .go.primary span { color: #5a4416; }
+.cover .go:hover { border-color: #e7b765; }
+
 .cover .meta { margin-top: auto; display: grid; grid-template-columns: repeat(3, 1fr); gap: 6mm; font-size: 8.5pt; color: #c2c7ce; border-top: .3mm solid #2a2e34; padding-top: 6mm; }
 .cover .meta b { display: block; font-size: 7pt; letter-spacing: .1em; text-transform: uppercase; color: #848b95; font-weight: 600; margin-bottom: 1mm; }
 
@@ -89,6 +96,7 @@ td.k { font-weight: 600; white-space: nowrap; } td.c, th.c { text-align: center;
 <svg class="logo" viewbox="0 0 32 32"><circle cx="16" cy="16" fill="none" r="13" stroke="#e7b765" stroke-opacity=".2" stroke-width="1.2"></circle><circle cx="16" cy="16" fill="none" r="8.5" stroke="#e7b765" stroke-opacity=".5" stroke-width="1.2"></circle><circle cx="16" cy="16" fill="#e7b765" r="4"></circle></svg>
 <h1>GDSI Lighting Calculator<span>User Manual</span></h1>
 <div class="sub">Illuminance standards, fixture quantity and layout for Hyundai GDSI dealer facilities</div>
+<div class="golinks"><a class="go primary" href="https://zspace1338.github.io/gdsi-lighting/" target="_blank" rel="noopener"><b>Open the calculator</b><span>zspace1338.github.io/gdsi-lighting</span></a><a class="go" href="https://zspace1338.github.io/gdsi-lighting/manual/" target="_blank" rel="noopener"><b>Online manual</b><span>always the latest version</span></a><a class="go" href="https://zspace1338.github.io/gdsi-lighting/manual/GDSI_Lighting_Calculator_User_Manual_v0.2.pdf" target="_blank" rel="noopener"><b>Download PDF</b><span>this manual, for printing</span></a></div>
 <img alt="" src="img/13-after-import.png"/>
 <div class="meta">
 <div><b>Version</b>v0.2 — Stage 2 (whole-drawing upload)</div>
