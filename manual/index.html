@@ -1,0 +1,574 @@
+<!DOCTYPE html>
+
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<title>GDSI Lighting Calculator - User Manual</title>
+<style>
+@page { size: A4; margin: 17mm 14mm 17mm;
+  @bottom-left { content: "GDSI Lighting Calculator  ·  User Manual"; font: 7.5pt "Segoe UI", "Malgun Gothic", sans-serif; color: #8a8f98; }
+  @bottom-right { content: counter(page) " / " counter(pages); font: 7.5pt "Segoe UI", sans-serif; color: #8a8f98; } }
+@page :first { margin: 0; @bottom-left { content: none; } @bottom-right { content: none; } }
+@page wide { size: A4 landscape; margin: 14mm 14mm 16mm; }
+section.wide { page: wide; }
+h2 { break-after: avoid; }
+.two { break-inside: avoid; justify-content: center; }
+.two img { width: auto !important; max-width: 100%; max-height: 205mm; margin: 0 auto; }
+#stdTable { font-size: 7.7pt; } #stdTable td { padding: 1.25mm 2mm; } #stdTable th { padding: 1.5mm 2mm; }
+* { box-sizing: border-box; }
+html { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+body { margin: 0; font: 9.2pt/1.55 "Segoe UI", "Malgun Gothic", sans-serif; color: #1f2328; }
+:root { --gold: #8e6420; --ink: #1f2328; --mute: #6b7280; --line: #e4e0d8; --paper: #f8f6f2; }
+
+/* cover */
+.cover { height: 297mm; padding: 26mm 20mm 20mm; background: #101214; color: #eef0f2; display: flex; flex-direction: column; break-after: page; }
+.cover .logo { width: 16mm; height: 16mm; }
+.cover h1 { font-size: 34pt; line-height: 1.12; font-weight: 600; letter-spacing: -.02em; margin: 14mm 0 0; }
+.cover h1 span { display: block; color: #e7b765; }
+.cover .sub { font-size: 13pt; color: #c2c7ce; margin-top: 5mm; }
+.cover img { width: 100%; border-radius: 3mm; border: .3mm solid #2a2e34; margin-top: 14mm; }
+.cover .meta { margin-top: auto; display: grid; grid-template-columns: repeat(3, 1fr); gap: 6mm; font-size: 8.5pt; color: #c2c7ce; border-top: .3mm solid #2a2e34; padding-top: 6mm; }
+.cover .meta b { display: block; font-size: 7pt; letter-spacing: .1em; text-transform: uppercase; color: #848b95; font-weight: 600; margin-bottom: 1mm; }
+
+/* structure */
+section { break-before: page; }
+section.flow { break-before: auto; }
+h2 { font-size: 17pt; font-weight: 600; letter-spacing: -.015em; margin: 0 0 1.5mm; padding-bottom: 2.5mm; border-bottom: .5mm solid var(--gold); display: flex; align-items: baseline; gap: 3mm; }
+h2 .n { color: var(--gold); font-size: 12pt; min-width: 8mm; }
+h2 small { font-size: 11pt; font-weight: 500; color: var(--mute); }
+h3 { font-size: 11pt; font-weight: 600; margin: 6.5mm 0 2mm; break-after: avoid; }
+h3 small { font-weight: 500; color: var(--mute); margin-left: 1.5mm; }
+p { margin: 0 0 2.2mm; }
+.bi { display: grid; grid-template-columns: 1fr 1fr; gap: 0 7mm; margin: 2mm 0 3mm; }
+.bi > div { min-width: 0; }
+.bi .ko { border-left: .3mm solid var(--line); padding-left: 7mm; color: #2d3138; }
+.tag { display: inline-block; font-size: 6.5pt; font-weight: 700; letter-spacing: .1em; color: var(--gold); margin-bottom: 1mm; }
+ul, ol { margin: 0 0 2.2mm; padding-left: 4.5mm; } li { margin-bottom: 1mm; }
+code, .ui { font: 600 8.4pt "Segoe UI", sans-serif; background: #efeae0; border-radius: 1mm; padding: .2mm 1.4mm; white-space: nowrap; }
+.formula { font: 10.5pt "Cambria Math", Cambria, "Segoe UI", serif; background: var(--paper); border: .3mm solid var(--line); border-left: 1mm solid var(--gold); border-radius: 1.5mm; padding: 3mm 5mm; margin: 2mm 0 3mm; break-inside: avoid; }
+.formula small { display: block; font: 8pt "Segoe UI", "Malgun Gothic", sans-serif; color: var(--mute); margin-top: 1.2mm; }
+
+figure { margin: 3mm 0 4mm; break-inside: avoid; }
+figure img { display: block; width: 100%; border-radius: 2mm; border: .3mm solid #d9d4c9; }
+figcaption { font-size: 7.6pt; color: var(--mute); margin-top: 1.5mm; }
+figcaption b { color: var(--ink); }
+.two { display: grid; grid-template-columns: 1fr 1fr; gap: 5mm; align-items: start; }
+.crop { overflow: hidden; border-radius: 2mm; border: .3mm solid #d9d4c9; } .crop img { border: 0; border-radius: 0; }
+
+table { width: 100%; border-collapse: collapse; margin: 2mm 0 4mm; font-size: 8.3pt; }
+th { text-align: left; background: var(--ink); color: #fff; font-size: 7.3pt; font-weight: 600; letter-spacing: .04em; padding: 2mm 2.2mm; vertical-align: bottom; }
+td { padding: 1.9mm 2.2mm; border-bottom: .25mm solid var(--line); vertical-align: top; }
+tr { break-inside: avoid; } thead { display: table-header-group; }
+tbody tr:nth-child(even) td { background: var(--paper); }
+td.k { font-weight: 600; white-space: nowrap; } td.c, th.c { text-align: center; white-space: nowrap; } td.s { font-size: 7.6pt; color: #3a3e45; }
+.pill { display: inline-block; font-size: 7.3pt; font-weight: 700; border-radius: 3mm; padding: .3mm 2.4mm; white-space: nowrap; }
+.ok { color: #1c7d4d; background: #e3f4ea; } .fail { color: #bf3a2c; background: #fbe6e3; } .warn { color: #9a5e06; background: #fdf0d8; }
+.badge { display: inline-block; font-size: 6.6pt; font-weight: 700; letter-spacing: .05em; border-radius: 1mm; padding: .2mm 1.6mm; white-space: nowrap; }
+.b-man { color: #8e6420; background: #f4ebd9; } .b-is { color: #1f6f9c; background: #e2eff6; } .b-no { color: #9a5e06; background: #fdf0d8; }
+
+.note { border-radius: 2mm; padding: 3mm 4mm; margin: 3mm 0 4mm; background: #fdf6e6; border-left: 1mm solid #d49a2c; break-inside: avoid; }
+.note.info { background: #eaf3f8; border-left-color: #3b8fbf; }
+.note .bi { margin: 0; } .note .ko { border-left-color: rgba(0,0,0,.1); }
+.steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4mm; margin: 3mm 0 4mm; }
+.step { border: .3mm solid var(--line); border-radius: 2.5mm; padding: 4mm; background: var(--paper); break-inside: avoid; }
+.step .no { font-size: 20pt; font-weight: 600; color: var(--gold); line-height: 1; }
+.step b { display: block; font-size: 10.5pt; margin: 1.5mm 0 1mm; } .step span { display: block; font-size: 8.2pt; color: #3a3e45; }
+.toc { columns: 2; column-gap: 10mm; margin-top: 4mm; font-size: 9.5pt; }
+.toc div { display: flex; gap: 3mm; padding: 1.6mm 0; border-bottom: .25mm dotted #cfcabf; break-inside: avoid; }
+.toc b { color: var(--gold); min-width: 6mm; } .toc span { color: var(--mute); margin-left: auto; padding-left: 3mm; font-size: 8.4pt; text-align: right; }
+.en { margin: 2mm 0 3mm; }
+.step span .ui { display: inline; font-size: 7.6pt; }
+.flow2 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 3mm; margin: 3mm 0 4mm; }
+@media screen { body { max-width: 230mm; margin: 0 auto; background: #e9e6e0; } section, .cover { background: #fff; padding: 14mm; margin: 0 0 6mm; } .cover { background: #101214; } .dl { position: sticky; top: 0; z-index: 9; display: flex; gap: 4mm; justify-content: flex-end; padding: 3mm 0; } .dl a { font: 600 9pt "Segoe UI", sans-serif; color: #1f2328; background: #fff; border: .3mm solid #d9d4c9; border-radius: 2mm; padding: 1.6mm 4mm; text-decoration: none; } }
+@media print { .dl { display: none; } }
+</style>
+</head>
+<body>
+<div class="dl"><a href="../">Open the calculator</a><a href="GDSI_Lighting_Calculator_User_Manual_v0.2.pdf" download>Download PDF</a></div>
+<div class="cover">
+<svg class="logo" viewbox="0 0 32 32"><circle cx="16" cy="16" fill="none" r="13" stroke="#e7b765" stroke-opacity=".2" stroke-width="1.2"></circle><circle cx="16" cy="16" fill="none" r="8.5" stroke="#e7b765" stroke-opacity=".5" stroke-width="1.2"></circle><circle cx="16" cy="16" fill="#e7b765" r="4"></circle></svg>
+<h1>GDSI Lighting Calculator<span>User Manual</span></h1>
+<div class="sub">Illuminance standards, fixture quantity and layout for Hyundai GDSI dealer facilities</div>
+<img alt="" src="img/13-after-import.png"/>
+<div class="meta">
+<div><b>Version</b>v0.2 — Stage 2 (whole-drawing upload)</div>
+<div><b>Issued</b>17 November 2026</div>
+<div><b>Address</b>zspace1338.github.io/gdsi-lighting<br/>Chrome or Edge, PC only</div>
+</div>
+</div>
+<!-- CONTENTS -->
+<section class="flow">
+<h2><span class="n"></span>Contents </h2>
+<div class="toc">
+<div><b>1</b>Overview</div>
+<div><b>2</b>Getting started</div>
+<div><b>3</b>Screen layout</div>
+<div><b>4</b>Upload the drawing</div>
+<div><b>5</b>Rooms tab</div>
+<div><b>6</b>Showroom Surface Light</div>
+<div><b>7</b>Fixtures tab</div>
+<div><b>8</b>Standards tab</div>
+<div><b>9</b>Saving and exporting</div>
+<div><b>10</b>How the calculation works</div>
+<div><b>11</b>Assumptions and limits</div>
+<div><b>12</b>Troubleshooting</div>
+<div><b>A</b>Appendix — Standards table</div>
+<div><b>B</b>Appendix — Built-in fixtures</div>
+</div>
+</section>
+<section>
+<h2><span class="n">1</span>Overview </h2>
+<div class="en">
+<div>
+<p>The GDSI Lighting Calculator gives a <b>preliminary lighting design</b> for each room of a dealer facility. You upload the floor plan or ceiling plan as one DXF file (or enter rooms by hand); the tool finds every room, looks up the required illuminance, calculates how many fixtures are needed, draws a layout and produces a schedule.</p>
+<p>Illuminance figures come from the <b>Hyundai GDSI 2.0 Guideline</b>. Where the guideline gives no figure, the Indian standard <b>IS 3646 (Part 1): 1992</b> is used and clearly marked.</p>
+<p>The result is for design coordination and budgeting. <b>Final verification must be done in DIALux or by the lighting vendor.</b></p>
+</div>
+
+</div>
+<div class="steps">
+<div class="step"><div class="no">1</div><b>Upload the drawing</b><span>Drop the whole floor plan or ceiling plan (DXF). Every room is found at once with its name, space type, size and ceiling height. Check the preview and click Add.</span></div>
+<div class="step"><div class="no">2</div><b>Check results</b><span>Read the quantity, average illuminance and the OK / Too dark check. Adjust the fixture if needed.</span></div>
+<div class="step"><div class="no">3</div><b>Export</b><span>Download the Excel schedule and save the project file.</span></div>
+</div>
+<table>
+<thead><tr><th style="width:17%"></th><th>Description</th></tr></thead>
+<tbody>
+<tr><td class="k">What it does</td><td>Standard lookup by space type · fixture quantity by the lumen method · regular grid layout · power density check · Excel / CSV schedule · <b>reads rooms from a DXF floor plan or ceiling plan</b></td></tr>
+<tr><td class="k">What it does not do</td><td>Point-by-point illuminance, uniformity, glare (UGR), daylight, emergency lighting, exporting the layout back to CAD (planned for Stage 3)</td></tr>
+</tbody>
+</table>
+</section>
+<!-- 2 GETTING STARTED -->
+<section>
+<h2><span class="n">2</span>Getting started </h2>
+<div class="en">
+<div>
+<ol>
+<li>Open <b>https://zspace1338.github.io/gdsi-lighting/</b> in Chrome or Edge on a PC. No installation and no login are needed.</li>
+<li>Type the project name at the top right.</li>
+<li>Click <span class="ui">Upload drawing</span> and choose the DXF floor plan or ceiling plan — or drag the file onto the page. See section 4.</li>
+<li>Rooms that are not on the drawing can still be added one by one with <span class="ui">+ Add room</span>.</li>
+</ol>
+<p><b>Screen size.</b> The tool is designed for PC monitors. On screens narrower than 1500 px the result panel moves below the room table. Phones are not supported.</p>
+<p><b>Where your data is kept.</b> Rooms and registered fixtures are saved automatically in the browser of the PC you are using. Nothing is sent to a server — <b>uploaded drawings are read inside the browser and never leave the PC.</b> Another PC or another browser will not show your rooms — use <span class="ui">Save</span> and <span class="ui">Open</span> to move a project.</p>
+<p><b>Updates.</b> When the tool is updated you receive the new version the next time you open the page. If the screen looks unchanged, press <span class="ui">Ctrl + F5</span>.</p>
+</div>
+
+</div>
+<div class="note">
+<div class="en">
+<div><b>Back up your work.</b> Clearing the browser history or site data deletes the rooms stored in the browser. Click <span class="ui">Save</span> at the end of each session and keep the <code>.json</code> file in the project folder.</div>
+
+</div>
+</div>
+<h2 style="margin-top:10mm"><span class="n">3</span>Screen layout </h2>
+<figure><img alt="" src="img/02-header.png"/><figcaption><b>Top bar</b> — always visible</figcaption></figure>
+<table>
+<thead><tr><th style="width:19%">Item</th><th>Description</th></tr></thead>
+<tbody>
+<tr><td class="k">Rooms / Fixtures / Standards</td><td>Three tabs. <b>Rooms</b> is the working screen, <b>Fixtures</b> is the fixture library, <b>Standards</b> is the reference table.</td></tr>
+<tr><td class="k">Project name</td><td>Shown in the Excel title and used as the file name.</td></tr>
+<tr><td class="k">Manual</td><td>Opens this user manual in a new tab.</td></tr>
+<tr><td class="k">Open</td><td>Loads a project file (<code>.json</code>) saved earlier. Replaces the rooms currently on screen after confirmation.</td></tr>
+<tr><td class="k">Save</td><td>Downloads the whole project — rooms, settings and registered fixtures — as one <code>.json</code> file.</td></tr>
+<tr><td class="k">CSV</td><td>Plain schedule without formatting, for pasting into other tools.</td></tr>
+<tr><td class="k">Export Excel</td><td>Formatted Excel schedule with three sheets. See section 9.</td></tr>
+<tr><td class="k">◐ (half-moon button)</td><td>Switches between the dark and the light screen. The choice is remembered.</td></tr>
+</tbody>
+</table>
+<figure><img alt="" src="img/10-light.png"/><figcaption><b>Light theme</b> — the same screen after pressing the half-moon button</figcaption></figure>
+</section>
+
+<!-- 4 UPLOAD THE DRAWING -->
+<section>
+<h2><span class="n">4</span>Upload the drawing </h2>
+<div class="en">
+<p>Instead of typing rooms one by one, upload the <b>whole floor plan or reflected ceiling plan</b> as one file. The tool finds every room, reads its name and area, guesses the space type from the name and reads the ceiling height from <code>CH</code> texts. You check the result on a preview before anything is added.</p>
+</div>
+<div class="flow2">
+<div class="step"><div class="no">1</div><b>Save as DXF</b><span>In AutoCAD: <span class="ui">SAVEAS</span> → file type <i>DXF</i> (any version). DWG cannot be read in a browser.</span></div>
+<div class="step"><div class="no">2</div><b>Upload</b><span>Click <span class="ui">Upload drawing</span> (top right of the Rooms tab) or drag the DXF onto the page.</span></div>
+<div class="step"><div class="no">3</div><b>Check the preview</b><span>Rooms are coloured and numbered on the drawing. Untick, rename or re-type rooms in the list.</span></div>
+<div class="step"><div class="no">4</div><b>Add</b><span>Click <span class="ui">Add N rooms</span>. Quantities and lux are calculated straight away.</span></div>
+</div>
+<figure><img alt="" src="img/11-import-plan.png"/><figcaption><b>Import window — floor plan with walls only.</b> Left: the drawing with each room found coloured and numbered (click a room to select it). Right: the room list — tick box, name, space type, area, equivalent length × width and ceiling height.</figcaption></figure>
+
+<h3>4.1 How rooms are found</h3>
+<p>The tool chooses the method automatically. You can switch it with <span class="ui">Find rooms by</span>.</p>
+<table>
+<thead><tr><th style="width:24%">Method</th><th>Description</th></tr></thead>
+<tbody>
+<tr><td class="k">Room outlines<br/>(closed polylines)</td><td>Used when the drawing has a layer of <b>closed polylines around each room</b> — typically a zone, room or area layer (e.g. <code>C-ZONE</code>, <code>A-ROOM</code>). Each outline is one room; the text inside it is the room name. This is the most accurate method. Choose the layer in <span class="ui">Outline layer</span>; the list shows how many outlines and named outlines each layer has.</td></tr>
+<tr><td class="k">Wall lines + room names</td><td>Used when no room outlines are drawn. The wall layers are drawn on a fine grid and the space around each <b>room-name text</b> is filled up to the walls.<br/>• <span class="ui">Bridge door gaps up to (m)</span> — openings narrower than this (default 1.0 m) are treated as closed, so the fill stops at doors. Raise it for wide openings; lower it if two rooms merge.<br/>• <span class="ui">Wall layers</span> — the layers used as walls (walls, partitions, columns, glazing, doors, windows are ticked automatically). Tick or untick to correct.<br/>• <span class="ui">Divide open-plan areas by room names</span> — when one open area holds several room names (showroom + lounge + reception), it is divided between the names. The dividing line is approximate; these rooms are tagged <i>split</i>.</td></tr>
+</tbody>
+</table>
+
+<h3>4.2 What is read from the drawing</h3>
+<table>
+<thead><tr><th style="width:24%">Item</th><th>Description</th></tr></thead>
+<tbody>
+<tr><td class="k">Units</td><td>Taken from the DXF header (mm, cm, m, inch, feet). If the file does not state them, mm is assumed and a warning is shown — check <span class="ui">Units</span>.</td></tr>
+<tr><td class="k">Room name</td><td>The largest text inside the room. Texts on name layers (ROOM, NAME, ZONE, AREA, SPACE) and texts with an area note win. Area notes such as <code>96 SQ.FT.</code> or <code>12 m2</code> are removed from the name. Dimensions, levels and tags (D1, W-02) are ignored.</td></tr>
+<tr><td class="k">Space type</td><td>Guessed from keywords in the name, e.g. SHOWROOM → Showroom, SERVICE RECEPTION → Service reception, TOILET / WC → Toilet, WHEEL ALIGNMENT → Wheel alignment, STORE → Store room. Common Indonesian words are understood too. A name that is not recognised gets <i>Other (enter target)</i> and the tag <i>type?</i> — choose the type in the list.</td></tr>
+<tr><td class="k">Area and size</td><td>The exact floor area of the room. Length × width is the <b>rectangle with the same area and perimeter</b>, so the room index used in the calculation is exact even for L-shaped rooms. Such rooms are tagged <i>irregular</i>; the layout sketch is schematic for them.</td></tr>
+<tr><td class="k">Ceiling height</td><td>Read from texts such as <code>CH +3,000</code>, <code>C.H. 2700</code> or <code>CH=2.85</code> inside the room (mm or m). If there is none, the default for the space type is used and shown as <i>default</i>.</td></tr>
+</tbody>
+</table>
+
+<h3>4.3 Floor plan first, then ceiling plan</h3>
+<div class="two">
+<figure><img alt="" src="img/12-import-rcp.png"/><figcaption><b>Reflected ceiling plan with zone outlines.</b> All ten rooms are found with their names, space types and the ceiling heights 4.8 / 3.0 / 2.7 m from the CH tags.</figcaption></figure>
+<div>
+<p>Rooms and ceiling heights are often on different drawings. Upload both:</p>
+<ol>
+<li>Upload the <b>floor plan</b> and add the rooms.</li>
+<li>Upload the <b>ceiling plan</b> with <span class="ui">Same name: update the existing room</span> ticked (default).</li>
+<li>Rooms whose name matches an existing room are <b>not added twice</b> — they take the ceiling height from the ceiling plan. Other rooms are added.</li>
+</ol>
+<p>At the bottom of the window choose <span class="ui">Add to current rooms</span> (default) or <span class="ui">Replace current rooms</span>.</p>
+</div>
+</div>
+<div class="note">
+<b>Always check the preview.</b> The tool reads the drawing as drawn. Untick spaces you do not want to light (outdoor driveway, site parking, voids), check every room tagged <i>split</i> or <i>type?</i>, and compare a few areas with the area notes on the drawing. Rooms over 3,000 m² and outlines without a name are left unticked.
+</div>
+
+<h3>4.4 Drawing tips for a clean import</h3>
+<table>
+<thead><tr><th style="width:24%">Tip</th><th>Description</th></tr></thead>
+<tbody>
+<tr><td class="k">Best: a room layer</td><td>Draw a closed polyline around each room on one layer (e.g. <code>A-ROOM</code> or <code>A-ZONE</code>) with the room name inside. The import is then exact and needs no wall detection.</td></tr>
+<tr><td class="k">Room names</td><td>One clear name per room, placed inside the room, using the GDSI room names (SHOWROOM, CUSTOMER LOUNGE, SERVICE RECEPTION, WORKSHOP …).</td></tr>
+<tr><td class="k">Ceiling heights</td><td>Put <code>CH +3,000</code> style tags inside each room on the ceiling plan.</td></tr>
+<tr><td class="k">One plan per file</td><td>Remove other sheets (elevations, details, other floors) or save only the floor you need. Use model space; paper space is ignored.</td></tr>
+<tr><td class="k">Bind XREFs</td><td>Walls inside an unbound XREF are not in the DXF. Bind or insert them before saving.</td></tr>
+</tbody>
+</table>
+</section>
+<!-- 4 ROOMS -->
+<section>
+<h2><span class="n">5</span>Rooms tab </h2>
+<h3>5.1 Project settings </h3>
+<figure><img alt="" src="img/03-controls.png"/></figure>
+<table>
+<thead><tr><th style="width:19%">Setting</th><th>Description</th></tr></thead>
+<tbody>
+<tr><td class="k">Maintenance factor</td><td>Allowance for light loss over time (dirt, lamp ageing). Default <b>0.8</b>, allowed range 0.5 – 1.0. Applies to every room. Use a lower value for dusty areas such as workshops if the project requires it.</td></tr>
+<tr><td class="k">Room finishes</td><td>Reflectance of ceiling / wall / floor. <b>Light</b> 70 / 50 / 20 % (default), <b>Medium</b> 50 / 30 / 20 %, <b>Dark or open ceiling</b> 30 / 10 / 10 %. Darker finishes need more fixtures.</td></tr>
+<tr><td class="k">Upload drawing</td><td>Reads all rooms from a DXF floor plan or ceiling plan. See section 4.</td></tr>
+<tr><td class="k">+ Add room</td><td>Adds one empty row at the bottom of the table for a room that is not on the drawing.</td></tr>
+</tbody>
+</table>
+<h3>5.2 Room table </h3>
+<figure><img alt="" src="img/05-table.png"/><figcaption>Click a row to show its details on the right. The selected row has a gold bar</figcaption></figure>
+<table>
+<thead><tr><th style="width:15%">Column</th><th class="c" style="width:8%">Input?</th><th>Description</th></tr></thead>
+<tbody>
+<tr><td class="k">Room name</td><td class="c">●</td><td>Free text, as on the drawing.</td></tr>
+<tr><td class="k">Space type</td><td class="c">●</td><td>Choose from 30 types in 7 groups. This decides the standard, the default ceiling height and the default fixture.</td></tr>
+<tr><td class="k">Length / Width (m)</td><td class="c">●</td><td>Clear room dimensions in metres. Filled in by the drawing upload (equivalent rectangle for irregular rooms). Typing a new value replaces the drawing size.</td></tr>
+<tr><td class="k">Ceiling (m)</td><td class="c">●</td><td>Finished ceiling height. A default is filled in for each space type — <b>replace it with the real height.</b> Until you do, a reminder is shown in the result panel.</td></tr>
+<tr><td class="k">Target (lux)</td><td class="c">○</td><td>The grey number is the design value from the standard. Type a number only if the project needs a different target; delete it to go back to the standard.</td></tr>
+<tr><td class="k">Fixture</td><td class="c">○</td><td><b>Auto</b> uses the default fixture for the space type. Pick a <b>Registered</b> fixture when the real product is known.</td></tr>
+<tr><td class="k">Qty</td><td class="c">—</td><td>Calculated quantity. For Surface Light: number of strips × length, plus supplementary spots.</td></tr>
+<tr><td class="k">Result (lux)</td><td class="c">—</td><td>Average maintained illuminance on the work plane with that quantity.</td></tr>
+<tr><td class="k">Check</td><td class="c">—</td><td>Pass / fail against the standard. See 5.3.</td></tr>
+<tr><td class="k">×</td><td class="c">—</td><td>Deletes the room after confirmation.</td></tr>
+</tbody>
+</table>
+<h3>5.3 Check status </h3>
+<table>
+<thead><tr><th style="width:15%">Status</th><th>Description</th></tr></thead>
+<tbody>
+<tr><td><span class="pill ok">OK</span></td><td>The average illuminance meets the required minimum and is not more than 10 % above the recommended maximum.</td></tr>
+<tr><td><span class="pill fail">Too dark</span></td><td>Below the required minimum (or below the target you entered). Choose a higher-output fixture or check the ceiling height.</td></tr>
+<tr><td><span class="pill warn">Too bright</span></td><td>More than 10 % above the recommended maximum. A lower-output fixture would save energy.</td></tr>
+<tr><td><span class="pill warn">Check</span></td><td>The target is met but there is a note to review in the result panel.</td></tr>
+<tr><td><span class="pill fail">Input needed</span></td><td>Something is missing — length, width, ceiling height, or a target for a space type that has no standard figure.</td></tr>
+</tbody>
+</table>
+<div class="note info">
+<div class="en">
+<div>When you type your own <b>Target</b>, the check compares the result with that number only; the recommended maximum is no longer applied.</div>
+
+</div>
+</div>
+</section>
+<section class="flow">
+<h3>5.4 Summary cards </h3>
+<figure><img alt="" src="img/04-kpi.png"/></figure>
+<table>
+<thead><tr><th style="width:19%">Card</th><th>Description</th></tr></thead>
+<tbody>
+<tr><td class="k">Rooms on target</td><td>Rooms that pass / all rooms. Rooms with <i>Too dark</i> or <i>Input needed</i> do not count as passed. The bar is amber until every room passes.</td></tr>
+<tr><td class="k">Installed power</td><td>Total lighting load of all calculated rooms in kW, and the total floor area.</td></tr>
+<tr><td class="k">Power density</td><td>Installed power ÷ floor area (W/m²). The reference 9.0 W/m² is the ECBC 2017 whole-building value for an automotive facility — shown for comparison, not as a pass / fail.</td></tr>
+<tr><td class="k">Fixture totals</td><td>Quantity of each fixture over the whole project. Surface Light is counted in m² of luminous surface.</td></tr>
+</tbody>
+</table>
+<h3 style="break-before:page;margin-top:0">5.5 Result panel </h3>
+<div class="two">
+<figure><img alt="" src="img/06-detail-showroom.png"/><figcaption><b>Showroom</b> — Surface Light strips with supplementary spots</figcaption></figure>
+<figure><img alt="" src="img/07-detail-workshop.png"/><figcaption><b>Workshop</b> — point fixtures on a regular grid</figcaption></figure>
+</div>
+</section>
+<section>
+<table>
+<thead><tr><th style="width:21%">Part</th><th>Description</th></tr></thead>
+<tbody>
+<tr><td class="k">Standard badge</td><td><span class="badge b-man">GDSI MANUAL</span> with the guideline page, <span class="badge b-is">IS 3646</span> with the clause, or <span class="badge b-no">ENTER</span> when no figure exists. The line below shows the required range and colour temperature.</td></tr>
+<tr><td class="k">Large number and bar</td><td>Average illuminance. On the bar, the green band is the required range, the thin tick is the design target and the dot is the result.</td></tr>
+<tr><td class="k">Layout plan</td><td>Room outline with a 1 m grid. Dots are point fixtures, short lines are linear fixtures, gold bands are Surface Light strips. The long side of the room is always drawn horizontally.</td></tr>
+<tr><td class="k">Quantity / Spacing</td><td>Number of fixtures with columns × rows, and the centre-to-centre spacing in both directions.</td></tr>
+<tr><td class="k">Installed power</td><td>Total watts for the room and watts per m².</td></tr>
+<tr><td class="k">Mounting height above work plane</td><td>Ceiling height − suspension − work plane height. This drives the room index.</td></tr>
+<tr><td class="k">Room index K, UF, MF</td><td>The values used in the formula, shown so the calculation can be checked by hand. See section 10.</td></tr>
+<tr><td class="k">Coloured notes</td><td>Blue = information, amber = something to review, red = a problem to fix.</td></tr>
+<tr><td class="k">Suspension below ceiling (m)</td><td>Enter the drop if fixtures hang below the ceiling (pendants, high bays on chains). Default 0.</td></tr>
+<tr><td class="k">Work plane height (m)</td><td>Height at which illuminance is assessed. Default 0.85 m for general spaces, 0.75 m for workshop areas and 0 m (floor) for corridors, parking and outdoor areas.</td></tr>
+</tbody>
+</table>
+<h2 style="break-before:page"><span class="n">6</span>Showroom Surface Light </h2>
+<div class="en">
+<div>
+<p>For the showroom, highlight zone and delivery zone the default fixture is the <b>Surface Light</b> (luminous ceiling). The tool follows the module in the GDSI guideline (p.94–95): strips <b>1,500 mm wide</b> separated by <b>2,400 mm</b> breaks, running along the long side of the room.</p>
+<ol>
+<li>The number of strips is limited by the room width.</li>
+<li>If the strips alone do not reach the target, <b>LED spot lights are added in the breaks</b> and the blue note states how many.</li>
+<li>The quantity is shown as <i>strips × length + spots</i>, and the luminous area in m² appears in the totals.</li>
+</ol>
+</div>
+
+</div>
+<div class="note">
+<div class="en">
+<div>The output of the built-in Surface Light (3,000 lm per m²) is an <b>assumption</b>. Register the actual product in the Fixtures tab — the number of supplementary spots will change.</div>
+
+</div>
+</div>
+</section>
+<!-- 6 FIXTURES -->
+<section>
+<h2><span class="n">7</span>Fixtures tab </h2>
+<figure><img alt="" src="img/08-fixtures.png"/><figcaption>Registered fixtures appear at the top with a green badge</figcaption></figure>
+<div class="en">
+<div>
+<p>The seven built-in fixtures are <b>generic placeholders</b> (amber <i>GENERIC</i> badge). They let you start before the lighting vendor is chosen, but their output is an assumption.</p>
+<p><b>Register the fixtures actually used on site</b> as soon as the datasheets are available. Registered fixtures can then be selected in the <i>Fixture</i> column of the room table.</p>
+</div>
+
+</div>
+<h3>7.1 Register a fixture </h3>
+<table>
+<thead><tr><th style="width:21%">Field</th><th>Description</th></tr></thead>
+<tbody>
+<tr><td class="k">Name / model</td><td>Maker and model number, as it should appear in the schedule.</td></tr>
+<tr><td class="k">Type</td><td><b>Point</b> — downlight, spot, panel, high bay. <b>Linear</b> — batten, pendant line. <b>Surface Light</b> — luminous ceiling.</td></tr>
+<tr><td class="k">Luminous flux</td><td>Total lumens of one fixture, from the datasheet (luminaire lumens, not lamp lumens). For Surface Light: lumens per m² of luminous surface.</td></tr>
+<tr><td class="k">Power</td><td>Watts of one fixture including the driver. For Surface Light: watts per m².</td></tr>
+<tr><td class="k">Colour temperature / CRI</td><td>Optional. Shown in the fixture list and the Excel take-off.</td></tr>
+<tr><td class="k">Max spacing / mounting height</td><td>Spacing-to-height ratio from the datasheet. Default 1.5. The layout keeps the spacing within this ratio so the light stays even. Not used for Surface Light.</td></tr>
+<tr><td class="k">Length (m)</td><td>Linear fixtures only. Used for drawing the layout. Default 1.2 m.</td></tr>
+<tr><td class="k">Note</td><td>Datasheet link, IP rating, etc.</td></tr>
+</tbody>
+</table>
+<div class="en">
+<div>
+<p><b>Edit / delete.</b> Use <span class="ui">Edit</span> or <span class="ui">×</span> on a registered row. If a deleted fixture was used in rooms, those rooms go back to the default fixture.</p>
+<p><b>Share with colleagues.</b> <span class="ui">Export fixtures</span> downloads <code>gdsi-fixtures.json</code>. A colleague clicks <span class="ui">Import fixtures</span> and chooses that file. Fixtures with the same ID are updated, new ones are added.</p>
+</div>
+
+</div>
+</section>
+<!-- 7 STANDARDS -->
+<section>
+<h2><span class="n">8</span>Standards tab </h2>
+<figure><img alt="" src="img/09-standards.png"/></figure>
+<div class="en">
+<div>
+<p>The table lists all 30 space types with the minimum, design and maximum illuminance, the colour temperature and the source. It is read-only.</p>
+<p><b>Design</b> is the value the calculator aims for. Where the source gives a range, the design value is the middle of the range.</p>
+</div>
+
+</div>
+<table>
+<thead><tr><th style="width:17%">Badge</th><th>Description</th></tr></thead>
+<tbody>
+<tr><td><span class="badge b-man">GDSI MANUAL</span></td><td>Figure taken from the Hyundai GDSI 2.0 Guideline v2.0 (2022-06). The page number of the PDF is shown. 13 space types.</td></tr>
+<tr><td><span class="badge b-is">IS 3646</span></td><td>The guideline gives no figure, so IS 3646 (Part 1): 1992, Table 1 is used. The clause is shown. 15 space types.</td></tr>
+<tr><td><span class="badge b-no">ENTER</span></td><td>No figure in either document (outdoor vehicle display, and <i>Other</i>). Enter the target agreed for the project in the <i>Target</i> column.</td></tr>
+</tbody>
+</table>
+<p style="font-size:8pt;color:#6b7280">The complete table is in Appendix A</p>
+<h2 style="margin-top:9mm"><span class="n">9</span>Saving and exporting </h2>
+<table>
+<thead><tr><th style="width:17%">Button</th><th style="width:20%">File</th><th>Description</th></tr></thead>
+<tbody>
+<tr><td class="k">Save</td><td class="s"><i>project name</i>.json</td><td>The working file. Keep it to continue later or to pass the project to a colleague.</td></tr>
+<tr><td class="k">Open</td><td class="s">.json</td><td>Loads a saved project, including its registered fixtures.</td></tr>
+<tr><td class="k">Export Excel</td><td class="s"><i>project name</i>-lighting-schedule.xlsx</td><td>The deliverable. Three formatted sheets, ready to print.</td></tr>
+<tr><td class="k">CSV</td><td class="s"><i>project name</i>-lighting-schedule.csv</td><td>The same schedule as plain data.</td></tr>
+</tbody>
+</table>
+<div class="note info">
+<div class="en">
+<div>In the schedule, <b>Generic</b> in the <i>Fixture status</i> column means the quantity is based on a placeholder fixture. Replace generic fixtures with registered ones before the schedule is issued for construction. The three sheets are shown on the next pages.</div>
+
+</div>
+</div>
+</section>
+<section class="wide">
+<h3 style="margin-top:0">9.1 Excel schedule </h3>
+<figure><div class="crop" style="height:72mm"><img alt="" src="img/xl-1.png"/></div><figcaption><b>Sheet 1 — Lighting Schedule.</b> One row per room: dimensions, standard, fixture, quantity, layout, average illuminance, power and check. The TOTAL row uses formulas. Headers stay fixed and filters are on. Prints on A3 landscape. </figcaption></figure>
+<figure><div class="crop" style="height:83mm"><img alt="" src="img/xl-2.png"/></div><figcaption><b>Sheet 2 — Fixture Take-off.</b> Quantity, output, power and total power of each fixture, and the rooms where it is used. Use it for the bill of quantities. </figcaption></figure>
+<figure><div class="crop" style="height:154mm"><img alt="" src="img/xl-3.png"/></div><figcaption><b>Sheet 3 — Basis.</b> Calculation method, maintenance factor, room finishes, the standards applied in this project and their sources. Attach it when the schedule is issued. </figcaption></figure>
+</section>
+<!-- 9 CALCULATION -->
+<section>
+<h2><span class="n">10</span>How the calculation works </h2>
+<div class="en">
+<div><p>The tool uses the <b>lumen method</b>, which gives the average illuminance over the whole room. The steps below are the same for every room.</p></div>
+
+</div>
+<h3>Step 1 — Mounting height and room index </h3>
+<div class="formula">H<sub>m</sub> = ceiling height − suspension − work plane height      K = (L × W) ÷ (H<sub>m</sub> × (L + W))
+    <small>L, W = room length and width (m). K is larger for wide, low rooms.</small></div>
+<h3>Step 2 — Utilisation factor </h3>
+<div class="en">
+<div><p>UF is the share of the fixture output that reaches the work plane. It is read from the table below by room index K and room finishes; values between two K figures are interpolated.</p></div>
+
+</div>
+<table>
+<thead><tr><th>Room index K</th><th class="c">0.6</th><th class="c">0.8</th><th class="c">1.0</th><th class="c">1.25</th><th class="c">1.5</th><th class="c">2.0</th><th class="c">2.5</th><th class="c">3.0</th><th class="c">4.0</th><th class="c">5.0</th></tr></thead>
+<tbody>
+<tr><td class="k">Light · 70 / 50 / 20 %</td><td class="c">0.42</td><td class="c">0.50</td><td class="c">0.56</td><td class="c">0.62</td><td class="c">0.66</td><td class="c">0.72</td><td class="c">0.76</td><td class="c">0.79</td><td class="c">0.83</td><td class="c">0.85</td></tr>
+<tr><td class="k">Medium · 50 / 30 / 20 %</td><td class="c">0.36</td><td class="c">0.44</td><td class="c">0.50</td><td class="c">0.56</td><td class="c">0.60</td><td class="c">0.66</td><td class="c">0.70</td><td class="c">0.73</td><td class="c">0.77</td><td class="c">0.80</td></tr>
+<tr><td class="k">Dark · 30 / 10 / 10 %</td><td class="c">0.31</td><td class="c">0.39</td><td class="c">0.45</td><td class="c">0.51</td><td class="c">0.55</td><td class="c">0.61</td><td class="c">0.65</td><td class="c">0.68</td><td class="c">0.73</td><td class="c">0.76</td></tr>
+</tbody>
+</table>
+<h3>Step 3 — Number of fixtures </h3>
+<div class="formula">N = (E × A) ÷ (Φ × UF × MF)    → rounded up
+    <small>E = target illuminance (lux) · A = floor area (m²) · Φ = luminous flux of one fixture (lm) · MF = maintenance factor<br/>E</small></div>
+<h3>Step 4 — Layout </h3>
+<div class="en">
+<div>
+<p>The fixtures are placed on a regular grid, as square as possible, with half a spacing between the outer row and the wall.</p>
+<p>The spacing must not exceed <b>1.5 × mounting height</b> (or the ratio registered for the fixture). In a large low room this can require <b>more fixtures than Step 3</b>; the blue note then explains the difference.</p>
+<p>Outdoor space types skip the spacing rule.</p>
+</div>
+
+</div>
+<h3>Step 5 — Result and check </h3>
+<div class="formula">E<sub>avg</sub> = (N × Φ × UF × MF) ÷ A      Power density = (N × W) ÷ A
+    <small>E<sub>avg</sub> is compared with the minimum and maximum of the standard (section 5.3). Power density is compared with the ECBC 2017 reference for the space type; exceeding it adds a note but does not fail the room.<br/>E<sub>avg</sub></small></div>
+<h3>Worked example </h3>
+<table>
+<thead><tr><th style="width:34%">Workshop Bay 30 × 18 m, ceiling 6.0 m</th><th>Description</th></tr></thead>
+<tbody>
+<tr><td class="s">H<sub>m</sub> = 6.0 − 0 − 0.75 = <b>5.25 m</b></td><td>Workshop work plane is 0.75 m.</td></tr>
+<tr><td class="s">K = 540 ÷ (5.25 × 48) = <b>2.14</b></td><td>Room index.</td></tr>
+<tr><td class="s">UF = <b>0.73</b> (light finishes)</td><td>Between 0.72 at K = 2.0 and 0.76 at K = 2.5.</td></tr>
+<tr><td class="s">N = 750 × 540 ÷ (21,000 × 0.73 × 0.8) = 32.96 → <b>33</b></td><td>LED high bay 150 W, 21,000 lm.</td></tr>
+<tr><td class="s">Grid 7 × 5 = <b>35 pcs</b>, 4.29 × 3.60 m</td><td>The nearest regular grid that holds at least 33 and keeps the spacing within 1.5 × 5.25 = 7.9 m.</td></tr>
+<tr><td class="s">E<sub>avg</sub> = 35 × 21,000 × 0.73 × 0.8 ÷ 540 = <b>796 lux</b></td><td>Above the minimum 750 lux → <span class="pill ok">OK</span></td></tr>
+</tbody>
+</table>
+</section>
+<!-- 10 ASSUMPTIONS -->
+<section>
+<h2><span class="n">11</span>Assumptions and limits </h2>
+<table>
+<thead><tr><th style="width:19%">Item</th><th>Description</th></tr></thead>
+<tbody>
+<tr><td class="k">Generic fixtures</td><td>Output and power of the seven built-in fixtures are typical LED values, not manufacturer data. Quantities change when real fixtures are registered.</td></tr>
+<tr><td class="k">Utilisation factor</td><td>The UF table is a generic table for direct-distribution LED fixtures. A real fixture may differ by roughly ±10 %.</td></tr>
+<tr><td class="k">Default ceiling heights</td><td>Only the workshop minimum 4.8 m comes from the guideline. All other default heights are starting values — enter the real height.</td></tr>
+<tr><td class="k">Design target in a range</td><td>Showroom 700 – 1000 lux is designed to 850 lux (the midpoint). Enter another target if the project requires it.</td></tr>
+<tr><td class="k">Room shape</td><td>Rooms are treated as empty rectangles. Irregular rooms from a drawing use the rectangle with the same area and perimeter. Columns, vehicles, lifts, racks and partitions are not considered.</td></tr>
+<tr><td class="k">Drawing upload</td><td>Wall detection works on the lines as drawn: gaps wider than the door-gap setting let rooms merge, and open-plan areas are divided by room names only approximately. Rooms found from walls are about 3 % smaller than the area notes on the drawing (wall line thickness). Always check the preview.</td></tr>
+<tr><td class="k">Average only</td><td>The result is an average. Uniformity, glare and vertical illuminance on vehicles are not checked.</td></tr>
+<tr><td class="k">Outdoor areas</td><td>The room method is for interiors. Outdoor results are a rough count only — confirm with a pole-lighting calculation.</td></tr>
+<tr><td class="k">Paint booth</td><td>Booth lighting is normally supplied with the booth. Confirm with the booth vendor before adding fixtures.</td></tr>
+<tr><td class="k">Hazardous areas</td><td>FCEV / EV stalls and the paint mixing room need explosion-proof fixtures. The tool selects a generic explosion-proof fixture; certification must be checked on the real product.</td></tr>
+<tr><td class="k">Service reception</td><td>IS 3646 has no direct item; the nearest item (enquiry desks, 500 lux) is used. Confirm with the project lead.</td></tr>
+</tbody>
+</table>
+<div class="note">
+<div class="en">
+<div><b>Before construction issue:</b> replace all generic fixtures with registered ones, enter real ceiling heights, and have the design verified in DIALux or by the lighting vendor with the photometric files (IES / LDT) of the actual fixtures.</div>
+
+</div>
+</div>
+<h2 style="margin-top:9mm"><span class="n">12</span>Troubleshooting </h2>
+<table>
+<thead><tr><th style="width:24%">Symptom</th><th>Description</th></tr></thead>
+<tbody>
+<tr><td class="k">Check shows <i>Input needed</i></td><td>Enter length, width and ceiling height. For <i>Outdoor vehicle display</i> and <i>Other</i>, also enter a target.</td></tr>
+<tr><td class="k">“Mounting height above the work plane is too small”</td><td>Ceiling height minus suspension minus work plane is 0.3 m or less. Check the ceiling height and the suspension.</td></tr>
+<tr><td class="k">Quantity is higher than expected</td><td>The spacing rule (1.5 × mounting height) is adding fixtures in a low room. Choose a lower-output fixture, or register the real spacing ratio.</td></tr>
+<tr><td class="k">Rooms disappeared</td><td>The browser data was cleared, or you are on another PC or browser. Use <span class="ui">Open</span> with the saved <code>.json</code> file.</td></tr>
+<tr><td class="k">“This is not a GDSI Lighting project file”</td><td>The file chosen in <span class="ui">Open</span> is a fixture file or another JSON. Fixture files are loaded from the Fixtures tab.</td></tr>
+<tr><td class="k">“DWG files cannot be read in the browser”</td><td>Save the drawing as DXF in AutoCAD (<span class="ui">SAVEAS</span> → DXF) and upload the DXF.</td></tr>
+<tr><td class="k">Upload finds no rooms</td><td>Switch <span class="ui">Find rooms by</span> to the other method, check <span class="ui">Units</span>, and in wall mode open <span class="ui">Wall layers</span> and tick the layers that hold the walls.</td></tr>
+<tr><td class="k">Two rooms came out as one</td><td>The wall between them has an opening wider than the door-gap setting, or the wall is on a layer that is not ticked. Lower <span class="ui">Bridge door gaps</span> or tick the layer.</td></tr>
+<tr><td class="k">A room is listed as “open to the outside” and skipped</td><td>The fill escaped through an opening to the edge of the drawing (entrance, shutter, glazing on an unticked layer). Tick the glazing / door layers or raise <span class="ui">Bridge door gaps</span>.</td></tr>
+<tr><td class="k">Wrong space type or name</td><td>Correct it in the import list before adding, or later in the room table.</td></tr>
+<tr><td class="k">Screen looks old after an update</td><td>Press <span class="ui">Ctrl + F5</span>.</td></tr>
+<tr><td class="k">Table is cut off on a laptop</td><td>Maximise the browser window, or zoom out with <span class="ui">Ctrl + −</span>.</td></tr>
+</tbody>
+</table>
+</section>
+<!-- APPENDIX A -->
+<section>
+<h2><span class="n">A</span>Standards table </h2>
+<p style="font-size:8pt;color:#6b7280">Illuminance in lux. Design = value the calculator aims for. H = default ceiling height (m), WP = work plane height (m</p>
+<table id="stdTable">
+<thead><tr><th style="width:27%">Space type</th><th class="c">Min</th><th class="c">Design</th><th class="c">Max</th><th class="c">CCT (K)</th><th class="c">H</th><th class="c">WP</th><th>Source</th><th>Default fixture</th></tr></thead>
+<tbody></tbody>
+</table>
+</section>
+<!-- APPENDIX B -->
+<section>
+<h2><span class="n">B</span>Built-in fixtures </h2>
+<div class="en">
+<div><p>All values are generic assumptions for typical LED products. They are placeholders until the real fixtures are registered.</p></div>
+
+</div>
+<table id="fxTable">
+<thead><tr><th style="width:34%">Fixture</th><th>Type</th><th class="c">Output</th><th class="c">Power</th><th class="c">lm/W</th><th class="c">CCT (K)</th><th>Note</th></tr></thead>
+<tbody></tbody>
+</table>
+<h3>Document information </h3>
+<table>
+<tbody>
+<tr><td class="k" style="width:24%">Tool version</td><td>v0.2 — Stage 2, whole-drawing upload (DXF floor plan / ceiling plan) and manual room entry</td></tr>
+<tr><td class="k">Primary standard</td><td>Hyundai GDSI 2.0 Guideline, Version 2.0 (2022-06)</td></tr>
+<tr><td class="k">Supplementary standard</td><td>IS 3646 (Part 1): 1992, Table 1 · work plane heights per NBC 2016 Part 8 · power density references per ECBC 2017</td></tr>
+<tr><td class="k">Planned</td><td>Stage 3: export the layout to DXF, install as a desktop app. Stage 4: pilot with designers in India.</td></tr>
+</tbody>
+</table>
+</section>
+<script src="../data/standards.js"></script>
+<script src="../data/fixtures.js"></script>
+<script>
+(function () {
+  var STD = window.GDSI_STANDARDS, FX = window.GDSI_FIXTURES || [];
+  var esc = function (s) { return String(s).replace(/[&<>]/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]; }); };
+  var v = function (x) { return x === null || x === undefined ? "–" : x; };
+  var fxName = function (id) { for (var i = 0; i < FX.length; i++) if (FX[i].id === id) return FX[i].name.replace(" - generic", ""); return id; };
+  var h = "", last = "";
+  STD.spaces.forEach(function (s) {
+    if (s.group !== last) { last = s.group; h += '<tr><td colspan="9" style="background:#f4ebd9;color:#8e6420;font-weight:700;font-size:7.6pt;letter-spacing:.05em">' + esc(s.group.toUpperCase()) + "</td></tr>"; }
+    var src = s.source.type === "manual" ? '<span class="badge b-man">GDSI MANUAL</span> ' + esc(s.source.ref) : s.source.type === "is3646" ? '<span class="badge b-is">IS 3646</span> ' + esc(s.source.ref) : '<span class="badge b-no">ENTER</span>';
+    h += "<tr><td><b>" + esc(s.name) + '</b></td><td class="c">' + v(s.min) + '</td><td class="c"><b>' + v(s.target) + '</b></td><td class="c">' + v(s.max) + '</td><td class="c">' + v(s.cct) + '</td><td class="c">' + s.defaultH.toFixed(1) + '</td><td class="c">' + s.workPlane.toFixed(2) + '</td><td class="s">' + src + '</td><td class="s">' + esc(fxName(s.defaultFixture)) + "</td></tr>";
+  });
+  document.querySelector("#stdTable tbody").innerHTML = h;
+  var KIND = { point: "Point", linear: "Linear", surface: "Surface Light" };
+  document.querySelector("#fxTable tbody").innerHTML = FX.map(function (f) {
+    var per = f.kind === "surface" ? "/m²" : "";
+    return "<tr><td class=\"k\" style=\"white-space:normal\">" + esc(f.name) + "</td><td>" + KIND[f.kind] + '</td><td class="c">' + Number(f.lm).toLocaleString("en-US") + " lm" + per + '</td><td class="c">' + f.watt + " W" + per + '</td><td class="c">' + Math.round(f.lm / f.watt) + '</td><td class="c">' + v(f.cct) + '</td><td class="s">' + esc(f.note || "") + "</td></tr>";
+  }).join("");
+})();
+</script>
+</body>
+</html>

@@ -1,4 +1,4 @@
-/* GDSI Lighting Calculator - UI (stage 1: manual room entry). */
+/* GDSI Lighting Calculator - UI (stage 2: whole-drawing DXF import + manual room entry). */
 (function () {
   "use strict";
   var C = window.GDSICalc, STD = window.GDSI_STANDARDS, BUILTIN = window.GDSI_FIXTURES;
@@ -95,6 +95,7 @@
     var tr = el.closest("tr"), i = Number(tr.getAttribute("data-i")), room = state.rooms[i];
     room[f] = el.value;
     if (f === "height") room.heightAuto = false;
+    if ((f === "length" || f === "width") && room.drawing) delete room.drawing;
     if (f === "use") {
       var std = stdById(room.use);
       if (room.heightAuto) { room.height = std.defaultH; tr.querySelector('[data-f="height"]').value = std.defaultH; }
@@ -225,7 +226,8 @@
     if (r.info) h += '<ul class="msgs"><li class="info">' + esc(r.info) + "</li></ul>";
     var notes = r.messages.slice();
     if (r.status !== "error" && !isUser(fx)) notes.push("Generic placeholder fixture - register the real fixture to confirm the quantity.");
-    if (room.heightAuto) notes.push("Ceiling height " + room.height + " m is a default - enter the real height.");
+    if (room.heightAuto) notes.push("Ceiling height " + room.height + " m is a default - enter the real height" + (room.drawing ? " or upload the ceiling plan (CH texts)." : "."));
+    notes = notes.concat(drawingNotes(room));
     h += '<ul class="msgs">' + notes.map(function (t) { return "<li" + (r.status === "error" || r.status === "fail" ? ' class="err"' : "") + ">" + esc(t) + "</li>"; }).join("") + "</ul>";
     $("detailRes").innerHTML = h;
   }
@@ -234,6 +236,14 @@
     room[k] = e.target.value;
     fillRow(state.sel); renderDetail(false); renderSummary(); save();
   });
+
+  function drawingNotes(room) {
+    var d = room.drawing, out = []; if (!d) return out;
+    out.push("From drawing " + d.file + " (" + r1(d.area) + " m2).");
+    if (d.irregular) out.push("Not a rectangle: length x width is the rectangle with the same area and perimeter, so the room index is exact; the layout plan is schematic.");
+    if (d.split) out.push("Open-plan area divided between room names - check the boundary.");
+    return out;
+  }
 
   /* ---------------- summary ---------------- */
   function renderSummary() {
@@ -384,7 +394,7 @@
       rows.push([i + 1, room.name || "Room " + (i + 1), std.name, room.length, room.width, e ? "" : r1(r.area), room.height, srcName, rangeText(std), e ? "" : C.round(r.target),
         fx.name, isUser(fx) ? "Registered" : "Generic placeholder", e ? "" : (r.kind === "surface" ? r1(r.luminousArea) : r.qty), r.kind === "surface" ? "m2" : "pcs",
         e ? "" : (r.kind === "surface" ? r.qty + " strips x " + r1(r.stripLength) + " m x " + r1(r.moduleWidth) + " m" + (r.suppQty ? " + " + r.suppQty + " pcs " + r.suppName : "") : r.cols + " x " + r.rows + " @ " + r2(r.sx) + " x " + r2(r.sy) + " m"),
-        e ? "" : C.round(r.achieved), e ? "" : C.round(r.totalWatt), e ? "" : r1(r.lpd), PILL[r.status], (r.info ? [r.info] : []).concat(r.messages).join(" / ")]);
+        e ? "" : C.round(r.achieved), e ? "" : C.round(r.totalWatt), e ? "" : r1(r.lpd), PILL[r.status], (r.info ? [r.info] : []).concat(r.messages, drawingNotes(room)).join(" / ")]);
     });
     rows.push([]);
     rows.push(["Assumptions", "Maintenance factor " + state.settings.mf, C.UF_TABLES[state.settings.reflectance].label, "Utilisation factor: generic table", "Preliminary sizing - verify with DIALux or the lighting vendor"]);
@@ -455,7 +465,7 @@
         { v: e ? "" : (surf ? r.qty + " strips × " + r1(r.stripLength) + " m × " + r1(r.moduleWidth) + " m" + (r.suppQty ? "\n+ " + r.suppQty + " pcs " + r.suppName : "") : r.cols + " × " + r.rows + " grid @ " + r2(r.sx) + " × " + r2(r.sy) + " m"), s: txt({ sz: 9 }) },
         { v: e ? null : C.round(r.achieved), s: body(z, { b: 1, fmt: "#,##0" }) }, { v: e ? null : C.round(r.totalWatt), s: body(z, { fmt: "#,##0" }) }, { v: e ? null : C.round(r.lpd, 1), s: body(z, { fmt: "0.0" }) },
         { v: PILL[r.status], s: st({ b: 1, sz: 9, h: "center", color: c.color, fill: c.fill, border: { bottom: "thin:" + LINE, left: "thin:FFFFFF", right: "thin:FFFFFF" } }) },
-        { v: (r.info ? [r.info] : []).concat(r.messages).join("\n"), s: txt({ sz: 9, color: MUTE }) }
+        { v: (r.info ? [r.info] : []).concat(r.messages, drawingNotes(room)).join("\n"), s: txt({ sz: 9, color: MUTE }) }
       ];
       rows.push({ h: rowH(cells, W1), c: cells });
     });
@@ -520,6 +530,256 @@
     var basis = { name: "Basis", rows: r3, cols: W3, merges: m3, landscape: true, footer: project + " - Basis of Calculation" };
 
     download(fileBase() + "-lighting-schedule.xlsx", X.build([schedule, takeoff, basis], S));
+  });
+
+  /* ---------------- whole-drawing import (DXF floor plan / reflected ceiling plan) ---------------- */
+  var D = window.GDSIDxf, imp = null;
+  var CODEPAGE = { ANSI_949: "euc-kr", ANSI_936: "gbk", ANSI_950: "big5", ANSI_932: "shift_jis", ANSI_874: "windows-874", ANSI_1250: "windows-1250", ANSI_1251: "windows-1251", ANSI_1252: "windows-1252", ANSI_1254: "windows-1254" };
+  function decodeDxf(buf) {
+    var head = new TextDecoder("latin1").decode(buf.slice(0, 20000));
+    var ver = (/\$ACADVER\s*\r?\n\s*1\s*\r?\n\s*AC(\d{4})/.exec(head) || [])[1];
+    var cp = (/\$DWGCODEPAGE\s*\r?\n\s*3\s*\r?\n\s*(\S+)/.exec(head) || [])[1];
+    if (ver && Number(ver) >= 1021) return new TextDecoder("utf-8").decode(buf); /* AutoCAD 2007+ DXF is UTF-8 */
+    try { return new TextDecoder("utf-8", { fatal: true }).decode(buf); } catch (e) { /* legacy code page */ }
+    try { return new TextDecoder(CODEPAGE[String(cp).toUpperCase()] || "windows-1252").decode(buf); } catch (e2) { return new TextDecoder("windows-1252").decode(buf); }
+  }
+  function openDrawing(file) {
+    if (!file) return;
+    var ext = (file.name.split(".").pop() || "").toLowerCase();
+    if (ext === "dwg") { alert("DWG files cannot be read in the browser.\n\nIn AutoCAD: SAVEAS > file type DXF (any version), then upload the DXF."); return; }
+    if (ext !== "dxf") { alert("Upload the drawing as a DXF file (floor plan or reflected ceiling plan)."); return; }
+    var rd = new FileReader();
+    rd.onload = function () {
+      var doc;
+      try { doc = D.parse(decodeDxf(rd.result)); } catch (e) { alert("This DXF could not be read. Save it again from AutoCAD as DXF and retry."); return; }
+      if (!doc.paths.length) { alert("No drawing geometry was found in model space of this DXF."); return; }
+      var det = D.detect(doc);
+      imp = { file: file.name, doc: doc, det: det, mode: det.mode, layer: det.layer, scale: det.scale, gap: 1.0, split: true, walls: det.wallLayers.slice(), rooms: [], res: null, on: [], sel: -1 };
+      $("imp").hidden = false; buildImportControls(); runImport();
+    };
+    rd.readAsArrayBuffer(file);
+  }
+  function buildImportControls() {
+    var d = imp.det, layers = Object.keys(imp.doc.layers).sort();
+    $("impFile").textContent = imp.file + " · " + layers.length + " layers · " + imp.doc.texts.length + " texts" + (d.unitDetected ? "" : " · units not stated in the file - check below");
+    var u = $("impUnit"), found = false;
+    Array.prototype.forEach.call(u.options, function (o) { if (Math.abs(Number(o.value) - imp.scale) < 1e-9) { o.selected = true; found = true; } });
+    if (!found) u.value = "0.001";
+    $("impMode").value = imp.mode;
+    var ol = d.outlineLayers.map(function (o) { return o.layer; });
+    layers.forEach(function (n) { if (imp.doc.layers[n].closed && ol.indexOf(n) < 0) ol.push(n); });
+    $("impLayer").innerHTML = ol.length ? ol.map(function (n) {
+      var o = d.outlineLayers.filter(function (x) { return x.layer === n; })[0];
+      return '<option value="' + esc(n) + '"' + (n === imp.layer ? " selected" : "") + ">" + esc(n) + (o ? " (" + o.rooms + " outlines, " + o.labelled + " named)" : "") + "</option>";
+    }).join("") : '<option value="">No closed polylines in this drawing</option>';
+    $("impGap").value = imp.gap; $("impSplit").checked = imp.split;
+    $("impWalls").innerHTML = layers.filter(function (n) { return imp.doc.layers[n].paths; }).map(function (n) {
+      return '<label class="chk"><input type="checkbox" value="' + esc(n) + '"' + (imp.walls.indexOf(n) >= 0 ? " checked" : "") + "> " + esc(n) + " <i>" + imp.doc.layers[n].paths + "</i></label>";
+    }).join("");
+    syncImportControls();
+  }
+  function syncImportControls() {
+    var w = imp.mode === "walls";
+    $("impLayerRow").hidden = w; $("impGapRow").hidden = !w; $("impSplitRow").hidden = !w; $("impWallsRow").hidden = !w;
+    $("impWallsN").textContent = "(" + imp.walls.length + ")";
+  }
+  function runImport() {
+    var res = imp.mode === "walls"
+      ? D.roomsFromWalls(imp.doc, { wallLayers: imp.walls, scale: imp.scale, gap: imp.gap, split: imp.split })
+      : (imp.layer ? D.roomsFromOutlines(imp.doc, { layer: imp.layer, scale: imp.scale }) : { rooms: [] });
+    imp.res = res; imp.rooms = res.rooms; imp.sel = -1;
+    /* named rooms are ticked; nameless outlines and very large open areas are left for the designer to decide */
+    imp.on = res.rooms.map(function (r) { return !!r.name && r.area <= 3000; });
+    imp.rooms.forEach(function (r) { r.useSel = r.use || "custom"; r.nameSel = r.name || ""; });
+    renderImportList(); drawImport();
+  }
+  function renderImportList() {
+    var stdName = function (id) { return stdById(id).name; };
+    $("impBody").innerHTML = imp.rooms.map(function (r, i) {
+      var flags = (r.irregular ? '<span class="tag" title="Not a rectangle: length x width is the rectangle with the same area and perimeter">irregular</span>' : "") +
+        (r.split ? '<span class="tag warn" title="Open-plan area divided between room names - boundary is approximate">split</span>' : "") +
+        (!r.use ? '<span class="tag warn" title="Space type not recognised from the name - choose it">type?</span>' : "");
+      return '<tr data-i="' + i + '"' + (i === imp.sel ? ' class="sel"' : "") + '><td class="c-no"><input type="checkbox" data-on' + (imp.on[i] ? " checked" : "") + '><b class="no" style="--h:' + hue(i) + '">' + (i + 1) + "</b></td>" +
+        '<td><input type="text" data-k="nameSel" value="' + esc(r.nameSel) + '" placeholder="(no name in the drawing)">' + flags + "</td>" +
+        '<td><select data-k="useSel" title="' + esc(stdName(r.useSel)) + '">' + useOptions(r.useSel) + "</select></td>" +
+        '<td class="c-n">' + r1(r.area) + '</td><td class="c-n">' + r2(r.L) + " × " + r2(r.W) + '</td><td class="c-n">' + (r.ch ? r2(r.ch) : '<span class="hint">default</span>') + "</td></tr>";
+    }).join("");
+    var n = imp.on.filter(Boolean).length, msg = [];
+    if (!imp.rooms.length) msg.push(imp.mode === "outline" ? "No room outlines on this layer. Try another layer, or switch to 'Wall lines + room names'." : (imp.res.error || "No rooms found. Check the wall layers and the units."));
+    else msg.push(imp.rooms.length + " rooms found, " + n + " selected. Nameless outlines and open areas over 3,000 m² are not ticked.");
+    if (imp.res.skipped) msg.push(imp.res.skipped + " name(s) sit in space open to the outside and were skipped" + (imp.res.openNames && imp.res.openNames.length ? ": " + imp.res.openNames.slice(0, 6).join(", ") : "") + ". If that is wrong, raise the door-gap width or tick the glazing / door layers.");
+    var withCh = imp.rooms.filter(function (r) { return r.ch; }).length;
+    if (imp.rooms.length) msg.push(withCh ? withCh + " ceiling height(s) read from CH texts." : "No CH ceiling-height texts - defaults are used; upload the ceiling plan to fill them.");
+    $("impMsg").innerHTML = msg.map(function (t) { return "<span>" + esc(t) + "</span>"; }).join("");
+    $("impAll").checked = n && n === imp.rooms.length;
+    $("impOk").textContent = n ? "Add " + n + " room" + (n > 1 ? "s" : "") : "Add rooms";
+    $("impOk").disabled = !n;
+  }
+  function hue(i) { return (i * 137.5 + 32) % 360; }
+
+  function drawImport() {
+    var cv = $("impCanvas"), box = cv.parentNode, dpr = window.devicePixelRatio || 1;
+    var Wc = box.clientWidth, Hc = box.clientHeight;
+    cv.width = Wc * dpr; cv.height = Hc * dpr; cv.style.width = Wc + "px"; cv.style.height = Hc + "px";
+    var g = cv.getContext("2d"); g.setTransform(dpr, 0, 0, dpr, 0, 0); g.clearRect(0, 0, Wc, Hc);
+    var css = getComputedStyle(document.documentElement), mute = css.getPropertyValue("--line-2").trim();
+    var showLayers = {};
+    if (imp.mode === "walls") imp.walls.forEach(function (n) { showLayers[n] = 1; }); else showLayers[imp.layer] = 1;
+    var paths = imp.doc.paths.filter(function (p) { return showLayers[p.layer]; });
+    if (imp.mode === "outline") { /* show the walls too, for orientation */
+      var wl = {}; imp.det.wallLayers.forEach(function (n) { wl[n] = 1; });
+      paths = imp.doc.paths.filter(function (p) { return wl[p.layer]; }).concat(paths);
+    }
+    var b = [Infinity, Infinity, -Infinity, -Infinity];
+    (imp.rooms.length ? imp.rooms.map(function (r) { return [[r.bb[0], r.bb[1]], [r.bb[2], r.bb[3]]]; }) : paths.map(function (p) { return p.pts; })).forEach(function (pts) {
+      pts.forEach(function (q) { if (q[0] < b[0]) b[0] = q[0]; if (q[1] < b[1]) b[1] = q[1]; if (q[0] > b[2]) b[2] = q[0]; if (q[1] > b[3]) b[3] = q[1]; });
+    });
+    if (!isFinite(b[0])) return;
+    var mx = (b[2] - b[0]) * 0.04 + 1e-6, my = (b[3] - b[1]) * 0.04 + 1e-6; b = [b[0] - mx, b[1] - my, b[2] + mx, b[3] + my];
+    var k = Math.min(Wc / (b[2] - b[0]), Hc / (b[3] - b[1])), ox = (Wc - (b[2] - b[0]) * k) / 2, oy = (Hc - (b[3] - b[1]) * k) / 2;
+    var X = function (x) { return ox + (x - b[0]) * k; }, Y = function (y) { return Hc - oy - (y - b[1]) * k; };
+    /* rooms */
+    if (imp.mode === "walls" && imp.res.raster) {
+      var R = imp.res.raster, off = document.createElement("canvas"); off.width = R.nx; off.height = R.ny;
+      var og = off.getContext("2d"), im = og.createImageData(R.nx, R.ny), px = im.data, col = {};
+      imp.rooms.forEach(function (r, i) {
+        var c = hsl(hue(i), imp.on[i] ? 0.62 : 0.0, imp.on[i] ? 0.55 : 0.6), a = i === imp.sel ? 200 : imp.on[i] ? 110 : 45;
+        col[r.regionId] = [c[0], c[1], c[2], a];
+      });
+      for (var y = 0; y < R.ny; y++) for (var x = 0; x < R.nx; x++) {
+        var c2 = col[R.label[y * R.nx + x]]; if (!c2) continue;
+        var o = ((R.ny - 1 - y) * R.nx + x) * 4; px[o] = c2[0]; px[o + 1] = c2[1]; px[o + 2] = c2[2]; px[o + 3] = c2[3];
+      }
+      og.putImageData(im, 0, 0);
+      var wx0 = R.origin[0] - R.pad * R.cell / R.scale, wy0 = R.origin[1] - R.pad * R.cell / R.scale, wx1 = wx0 + R.nx * R.cell / R.scale, wy1 = wy0 + R.ny * R.cell / R.scale;
+      g.imageSmoothingEnabled = false;
+      g.drawImage(off, X(wx0), Y(wy1), X(wx1) - X(wx0), Y(wy0) - Y(wy1));
+    } else {
+      imp.rooms.forEach(function (r, i) {
+        var c = hsl(hue(i), imp.on[i] ? 0.62 : 0, imp.on[i] ? 0.55 : 0.6);
+        g.beginPath(); r.outline.forEach(function (q, j) { if (j) g.lineTo(X(q[0]), Y(q[1])); else g.moveTo(X(q[0]), Y(q[1])); }); g.closePath();
+        g.fillStyle = "rgba(" + c.join(",") + "," + (i === imp.sel ? 0.8 : imp.on[i] ? 0.42 : 0.16) + ")"; g.fill();
+        g.strokeStyle = "rgba(" + c.join(",") + ",0.95)"; g.lineWidth = i === imp.sel ? 2 : 1; g.stroke();
+      });
+    }
+    /* drawing lines */
+    g.strokeStyle = mute; g.lineWidth = 0.7; g.beginPath();
+    paths.forEach(function (p) {
+      var pts = p.pts; g.moveTo(X(pts[0][0]), Y(pts[0][1]));
+      for (var j = 1; j < pts.length; j++) g.lineTo(X(pts[j][0]), Y(pts[j][1]));
+      if (p.closed) g.lineTo(X(pts[0][0]), Y(pts[0][1]));
+    });
+    g.stroke();
+    /* room numbers */
+    g.font = "600 11px Inter, Segoe UI, sans-serif"; g.textAlign = "center"; g.textBaseline = "middle";
+    imp.rooms.forEach(function (r, i) {
+      var x0 = X(r.labelX), y0 = Y(r.labelY), t = String(i + 1), w = g.measureText(t).width + 9;
+      g.fillStyle = imp.on[i] ? "hsl(" + hue(i) + ",62%,40%)" : "rgba(120,120,120,.75)";
+      g.beginPath(); g.roundRect ? g.roundRect(x0 - w / 2, y0 - 8, w, 16, 8) : g.rect(x0 - w / 2, y0 - 8, w, 16); g.fill();
+      g.fillStyle = "#fff"; g.fillText(t, x0, y0 + 0.5);
+    });
+    imp.view = { X: X, Y: Y, k: k, b: b, ox: ox, oy: oy, Hc: Hc };
+  }
+  function hsl(h, s, l) {
+    var a = s * Math.min(l, 1 - l), f = function (n) { var k2 = (n + h / 30) % 12; return Math.round(255 * (l - a * Math.max(-1, Math.min(k2 - 3, 9 - k2, 1)))); };
+    return [f(0), f(8), f(4)];
+  }
+  /* click on the drawing selects the room under the cursor */
+  $("impCanvas").addEventListener("click", function (e) {
+    if (!imp || !imp.view) return;
+    var rc = e.target.getBoundingClientRect(), v = imp.view, px2 = e.clientX - rc.left, py2 = e.clientY - rc.top;
+    var wx = v.b[0] + (px2 - v.ox) / v.k, wy = v.b[1] + (v.Hc - v.oy - py2) / v.k, hit = -1;
+    if (imp.mode === "walls" && imp.res.raster) {
+      var R = imp.res.raster, gx = Math.floor((wx - R.origin[0]) * R.scale / R.cell + R.pad), gy = Math.floor((wy - R.origin[1]) * R.scale / R.cell + R.pad);
+      var id = gx >= 0 && gy >= 0 && gx < R.nx && gy < R.ny ? R.label[gy * R.nx + gx] : 0;
+      imp.rooms.forEach(function (r, i) { if (r.regionId === id) hit = i; });
+    } else {
+      var best = Infinity;
+      imp.rooms.forEach(function (r, i) { if (r.area < best && wx >= r.bb[0] && wx <= r.bb[2] && wy >= r.bb[1] && wy <= r.bb[3] && pointIn(wx, wy, r.outline)) { best = r.area; hit = i; } });
+    }
+    if (hit < 0) return;
+    imp.on[hit] = imp.sel === hit ? !imp.on[hit] : imp.on[hit];
+    imp.sel = hit; renderImportList(); drawImport();
+    var tr = $("impBody").children[hit]; if (tr) tr.scrollIntoView({ block: "nearest" });
+  });
+  function pointIn(x, y, pts) {
+    var c = false;
+    for (var i = 0, j = pts.length - 1; i < pts.length; j = i++) if ((pts[i][1] > y) !== (pts[j][1] > y) && x < (pts[j][0] - pts[i][0]) * (y - pts[i][1]) / (pts[j][1] - pts[i][1]) + pts[i][0]) c = !c;
+    return c;
+  }
+  $("impBody").addEventListener("change", function (e) {
+    var tr = e.target.closest("tr"); if (!tr) return; var i = Number(tr.getAttribute("data-i"));
+    if (e.target.hasAttribute("data-on")) { imp.on[i] = e.target.checked; renderImportList(); drawImport(); return; }
+    var k = e.target.getAttribute("data-k"); if (k) imp.rooms[i][k] = e.target.value;
+  });
+  $("impBody").addEventListener("input", function (e) {
+    var tr = e.target.closest("tr"), k = e.target.getAttribute("data-k"); if (tr && k) imp.rooms[Number(tr.getAttribute("data-i"))][k] = e.target.value;
+  });
+  $("impBody").addEventListener("click", function (e) {
+    var tr = e.target.closest("tr"); if (!tr || /INPUT|SELECT/.test(e.target.tagName)) return;
+    imp.sel = Number(tr.getAttribute("data-i")); renderImportList(); drawImport();
+  });
+  $("impAll").addEventListener("change", function () { var v = $("impAll").checked; imp.on = imp.rooms.map(function () { return v; }); renderImportList(); drawImport(); });
+  $("impUnit").addEventListener("change", function () { imp.scale = Number($("impUnit").value); runImport(); });
+  $("impMode").addEventListener("change", function () { imp.mode = $("impMode").value; syncImportControls(); runImport(); });
+  $("impLayer").addEventListener("change", function () { imp.layer = $("impLayer").value; runImport(); });
+  $("impGap").addEventListener("change", function () { var v = C.num($("impGap").value); imp.gap = v === null || v < 0 ? 1 : Math.min(v, 6); $("impGap").value = imp.gap; runImport(); });
+  $("impSplit").addEventListener("change", function () { imp.split = $("impSplit").checked; runImport(); });
+  $("impWalls").addEventListener("change", function () {
+    imp.walls = Array.prototype.filter.call($("impWalls").querySelectorAll("input"), function (x) { return x.checked; }).map(function (x) { return x.value; });
+    syncImportControls(); runImport();
+  });
+  function closeImport() { $("imp").hidden = true; imp = null; }
+  $("impClose").addEventListener("click", closeImport);
+  $("impCancel").addEventListener("click", closeImport);
+  document.addEventListener("keydown", function (e) { if (e.key === "Escape" && imp) closeImport(); });
+  window.addEventListener("resize", function () { if (imp) drawImport(); });
+
+  $("impOk").addEventListener("click", function () {
+    var replace = document.querySelector('input[name="impMerge"]:checked').value === "replace", upd = $("impUpd").checked;
+    if (replace && state.rooms.length && !confirm("Replace the " + state.rooms.length + " current room(s) with the rooms from the drawing?")) return;
+    var before = replace ? [] : state.rooms.slice(), used = [], added = 0, updated = 0;
+    var key = function (s) { return String(s || "").toUpperCase().replace(/[^A-Z0-9]+/g, " ").trim(); };
+    if (replace) state.rooms = [];
+    imp.rooms.forEach(function (r, i) {
+      if (!imp.on[i]) return;
+      var use = r.useSel || "custom", std = stdById(use), name = r.nameSel.trim();
+      var L = C.round(r.L, 2), W = C.round(r.W, 2);
+      var drawing = { file: imp.file, area: C.round(r.area, 2), irregular: !!r.irregular, split: !!r.split };
+      var match = null;
+      if (upd && name) before.forEach(function (x) { if (!match && used.indexOf(x) < 0 && key(x.name) === key(name)) match = x; });
+      if (match) {
+        used.push(match);
+        if (r.ch) { match.height = r.ch; match.heightAuto = false; }
+        if (!C.num(match.length) || !C.num(match.width) || match.drawing) { match.length = L; match.width = W; match.drawing = drawing; }
+        updated++;
+        return;
+      }
+      state.rooms.push({ name: name, use: use, length: L, width: W, height: r.ch || std.defaultH, heightAuto: !r.ch, targetLux: "", fixtureId: "", suspension: "", workPlane: "", drawing: drawing });
+      added++;
+    });
+    closeImport();
+    state.sel = Math.max(0, state.rooms.length - added);
+    renderRooms(); save();
+    toast(added + " room(s) added" + (updated ? ", " + updated + " updated by name" : "") + " from the drawing.");
+  });
+  function toast(t) {
+    var el = document.createElement("div"); el.className = "toast"; el.textContent = t; document.body.appendChild(el);
+    setTimeout(function () { el.classList.add("out"); }, 3200); setTimeout(function () { el.remove(); }, 3800);
+  }
+
+  $("btnImport").addEventListener("click", function () { $("fileDwg").click(); });
+  $("fileDwg").addEventListener("change", function () { var f = $("fileDwg").files[0]; $("fileDwg").value = ""; openDrawing(f); });
+  /* drag and drop anywhere on the page */
+  var dragN = 0;
+  document.addEventListener("dragenter", function (e) { if (e.dataTransfer && Array.prototype.indexOf.call(e.dataTransfer.types, "Files") >= 0) { dragN++; $("dropHint").hidden = false; } });
+  document.addEventListener("dragleave", function () { dragN = Math.max(0, dragN - 1); if (!dragN) $("dropHint").hidden = true; });
+  document.addEventListener("dragover", function (e) { e.preventDefault(); });
+  document.addEventListener("drop", function (e) {
+    e.preventDefault(); dragN = 0; $("dropHint").hidden = true;
+    var f = e.dataTransfer && e.dataTransfer.files[0]; if (!f) return;
+    if (/\.json$/i.test(f.name)) return;
+    openDrawing(f);
   });
 
   /* ---------------- header ---------------- */

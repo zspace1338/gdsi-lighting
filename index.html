@@ -9,7 +9,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
-<link rel="stylesheet" href="style.css?v=4">
+<link rel="stylesheet" href="style.css?v=7">
 </head>
 <body>
 <header class="top">
@@ -24,6 +24,7 @@
   </nav>
   <div class="proj">
     <input id="projName" type="text" placeholder="Untitled project" aria-label="Project name">
+    <a id="lnkManual" class="btnlink ghost" href="manual/" target="_blank" rel="noopener" title="User manual (opens in a new tab)">Manual</a>
     <button id="btnOpen" class="ghost">Open</button>
     <button id="btnSave" class="ghost">Save</button>
     <button id="btnCsv" class="ghost" title="Plain CSV schedule">CSV</button>
@@ -50,7 +51,9 @@
         <label>Room finishes
           <select id="setRefl"></select>
         </label>
-        <button id="btnAdd" class="primary">+ Add room</button>
+        <button id="btnAdd" class="ghost">+ Add room</button>
+        <button id="btnImport" class="primary" title="Floor plan or reflected ceiling plan, DXF">Upload drawing</button>
+        <input id="fileDwg" type="file" accept=".dxf,.dwg" hidden>
       </div>
     </div>
     <div id="summary" class="summary"></div>
@@ -79,7 +82,8 @@
           <div id="emptyRooms" class="empty">
             <svg viewBox="0 0 48 48" aria-hidden="true"><circle cx="24" cy="24" r="20" class="l3"/><circle cx="24" cy="24" r="12" class="l2"/><circle cx="24" cy="24" r="5" class="l1"/></svg>
             <b>No rooms yet</b>
-            <span>Click <em>+ Add room</em> and enter the room size. The standard, quantity and layout appear straight away.</span>
+            <span>Drop the whole <em>floor plan or ceiling plan (DXF)</em> here, or click <em>Upload drawing</em>. Every room is found at once - name, space type, size and ceiling height.</span>
+            <span class="hint">Single rooms can still be added by hand with <em>+ Add room</em>.</span>
           </div>
         </div>
       </div>
@@ -159,10 +163,52 @@
   </section>
 </main>
 
-<script src="data/standards.js?v=4"></script>
-<script src="data/fixtures.js?v=4"></script>
-<script src="js/calc.js?v=4"></script>
-<script src="js/xlsx.js?v=4"></script>
-<script src="js/app.js?v=4"></script>
+<!-- DRAWING IMPORT -->
+<div id="imp" class="modal" hidden>
+  <div class="m-box card" role="dialog" aria-labelledby="impTitle">
+    <div class="m-head">
+      <div><h2 id="impTitle">Import drawing</h2><p id="impFile" class="hint"></p></div>
+      <button class="icon" id="impClose" title="Close" aria-label="Close">&times;</button>
+    </div>
+    <div class="m-ctl ctl">
+      <label>Units
+        <select id="impUnit"><option value="0.001">mm</option><option value="0.01">cm</option><option value="1">m</option><option value="0.0254">inch</option><option value="0.3048">feet</option></select>
+      </label>
+      <label>Find rooms by
+        <select id="impMode"><option value="outline">Room outlines (closed polylines)</option><option value="walls">Wall lines + room names</option></select>
+      </label>
+      <label id="impLayerRow">Outline layer <select id="impLayer"></select></label>
+      <label id="impGapRow">Bridge door gaps up to (m) <input id="impGap" type="number" min="0" max="6" step="0.1"></label>
+      <label id="impSplitRow" class="chk"><input type="checkbox" id="impSplit" checked> Divide open-plan areas by room names</label>
+      <details id="impWallsRow" class="layers"><summary>Wall layers <b id="impWallsN"></b></summary><div id="impWalls"></div></details>
+    </div>
+    <div class="m-body">
+      <div class="m-canvas"><canvas id="impCanvas"></canvas></div>
+      <div class="m-list">
+        <table class="grid">
+          <thead><tr><th class="c-no"><input type="checkbox" id="impAll" title="Select all"></th><th>Room name</th><th>Space type</th><th class="c-n">Area<br>(m²)</th><th class="c-n">L × W<br>(m)</th><th class="c-n">Ceiling<br>(m)</th></tr></thead>
+          <tbody id="impBody"></tbody>
+        </table>
+        <p id="impMsg" class="m-msg"></p>
+      </div>
+    </div>
+    <div class="m-foot">
+      <label class="chk"><input type="radio" name="impMerge" value="add" checked> Add to current rooms</label>
+      <label class="chk"><input type="radio" name="impMerge" value="replace"> Replace current rooms</label>
+      <label class="chk" title="Upload the floor plan first, then the ceiling plan: rooms with the same name take the ceiling height instead of being added twice"><input type="checkbox" id="impUpd" checked> Same name: update the existing room</label>
+      <span class="sp"></span>
+      <button class="ghost" id="impCancel">Cancel</button>
+      <button class="primary" id="impOk">Add rooms</button>
+    </div>
+  </div>
+</div>
+<div id="dropHint" class="drop" hidden><div><b>Drop the DXF drawing</b><span>Floor plan or reflected ceiling plan</span></div></div>
+
+<script src="data/standards.js?v=7"></script>
+<script src="data/fixtures.js?v=7"></script>
+<script src="js/calc.js?v=7"></script>
+<script src="js/dxf.js?v=7"></script>
+<script src="js/xlsx.js?v=7"></script>
+<script src="js/app.js?v=7"></script>
 </body>
 </html>
